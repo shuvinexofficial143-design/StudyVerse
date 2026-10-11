@@ -1,36 +1,34 @@
-# StudyVerse Private — simple Chat ID backend
+# StudyVerse Chat ID Backend — Android
 
-The owner requested **no email, password, QR, invitation, or team membership** for end users. Appwrite's anonymous session is used only behind the scenes. On each phone, tapping **Create My Chat ID** generates an Appwrite user ID. One person shares the ID with the other (outside the app); the sender pastes it once, taps Start Chat and sends text, image or voice notes. Receiving a first message automatically recognises that sender as the partner and opens their private conversation. The chosen peer is stored locally on that phone.
+## User flow
 
-The previously created Appwrite Team is not used and requires no invitations. Existing Open Chet and Instagram Supabase projects must remain unchanged.
+Each phone opens the private space, enters a simple **My Chat ID** such as `alex143` and presses **Create ID**. The other person does the same with a different ID. Enter the other person's short ID once, press **Start Chat**, and exchange text, photos and voice notes. No public sign-up form, email verification, invitation, QR, or call feature.
 
-## Project already created in Singapore
+The app uses an anonymous Appwrite session behind the scenes. Chat IDs must be 3–30 lowercase letters, numbers, underscores or hyphens; the first character must be a letter. IDs are unique and case-insensitive (entered ID is converted to lowercase). Each ID is reserved as a row named `user_<chat-id>` in the existing Private Messages table. The ID profile row is readable to other authenticated Appwrite users for lookup; message rows are readable only by the two participant Appwrite user IDs. Clearing app data or reinstalling can lose the anonymous account, ID access and chat history.
+
+## Appwrite project (already created, separate from Supabase production)
 
 - Endpoint: `https://sgp.cloud.appwrite.io/v1`
-- Project ID: `6acb25f9002eed3e32d5`
-- TablesDB database ID: `6acb26b800128ccfb9b7`
-- Private Messages table ID: `6acb27370006d588e3f4`
-- Target Storage bucket ID: `studyverse-private-media` (still must be created)
+- Project: `6acb25f9002eed3e32d5`
+- TablesDB database: `6acb26b800128ccfb9b7`
+- Private Messages table: `6acb27370006d588e3f4`
+- Target private media bucket: `studyverse-private-media` (create before sending photos/voice notes)
 
-Project, database and table IDs are **public configuration identifiers, not API secrets**. All five chat columns are present in the table: `sender_id` (string 64, required), `kind` (string 12, required), `body` (string 4000, optional), `file_id` (string 64, optional), and `duration_seconds` (integer 1–120, optional).
+## One-time Appwrite Console setup — required
 
-## Required dashboard configuration before use
+1. **Apps > Add Platform > Android**, register exact Package Name `com.studyverse.app.studyverse`. Without this Appwrite returns **Invalid Origin** when creating IDs. Editing the Flutter APK alone cannot override this server-side platform restriction.
+2. **Auth > Settings > Anonymous = ON**.
+3. **Databases > StudyVerseDB > Private Messages > Security**: Row Level Security ON and save. **Table permissions: Users CREATE only**. Do not add table-level READ, UPDATE, DELETE for Users or Any, because these would expose private chat rows. Message rows use `Permission.read(Role.user(senderUid))` and `Permission.read(Role.user(recipientUid))`. ID profile rows use `Permission.read(Role.users())` only so a phone can resolve another person's short ID with `getRow`.
+4. The table already has the fields: `sender_id` String(64) required; `kind` String(12) required; `body` String(4000) optional; `file_id` String(64) optional; `duration_seconds` Integer optional (1–120). Profile rows use `kind='profile'`; text/image/voice are messages. **No extra table or columns are required**.
+5. **Storage**: create private `studyverse-private-media` bucket; File Security ON, limit 10 MiB, allowed images JPEG/PNG/WebP and M4A/AAC audio. **Bucket CREATE only for Users**, no bucket READ or permissions for Any. Each uploaded media file is readable only by the two message participants.
+6. Validate with two real phones and with an unrelated third anonymous account. Third account must not be able to read message rows or files. Verify screenshots, app switching, sending, receiving, photo download, voice note playback and saved ID after restart.
 
-1. **Auth > Settings / Policies**: enable **Anonymous** sign-in. No login or invitation is shown inside StudyVerse.
-2. **Apps**: register the Flutter Android platform using the actual installed Android application ID. The workflow generates Android scaffolding with `flutter create . --platforms android --org com.studyverse.app`; inspect the generated `applicationId`, which is normally `com.studyverse.app.studyverse`.
-3. **Databases > StudyVerseDB > Private Messages > Security**: enable **Row Security**, save it. At the table level, grant **CREATE only** to `Users` (this includes anonymous sessions). **Never grant READ, UPDATE or DELETE at table level to Users, Any or Guests**. Rows created by the app grant **READ only to sender and intended recipient** via `Permission.read(Role.user(uid))`. Without this, anyone can view all messages. For stricter anti-impersonation and spam prevention, validate sender + target on an Appwrite Function; client-supplied `sender_id` alone must not be trusted as verified identity.
-4. **Storage**: create **private** bucket `studyverse-private-media`; enable **File Security**, at-rest encryption, file max size 10 MiB. Allow MIME types JPEG, PNG, WebP and audio/mp4 (AAC/M4A).
-5. **Bucket Permissions**: grant **CREATE only** to `Users`, including anonymous sessions. No bucket-level READ/UPDATE/DELETE for Users, Any or Guests. Files created by the app grant READ to the sender and recipient and DELETE to the sender.
-6. On an Android device, open the Vault, tap **Create My Chat ID**, then copy the server-generated Chat ID and give it to the other phone. The receiver can also create its ID independently. The sender pastes the receiver's ID and sends the first message; the receiver will show the incoming conversation.
-7. Test *two phones*, and separately test an unrelated third account. Confirm it cannot read either person's message rows or files. Tests must include relaunch, incoming message auto-detection, image upload/download, microphone permissions and voice playback.
-8. **Only build an APK after the owner explicitly asks for one.** GitHub push validation runs analyse and tests but not release APK.
+## Important limitations
 
-## Important limitations and security
-
-- Appwrite **anonymous accounts have no self-service recovery**. Clearing app data, uninstalling, losing the device or expiration of its session may make the Chat ID and its old messages inaccessible. Reinstalling may create a *different* ID. Do not promise recovery without adding an account-recovery design later.
-- A fixed/secret APK is not an access control mechanism. The third-account test remains required.
-- Messages are **not end-to-end encrypted**. Private Appwrite permissions restrict normal users; server/project administrators can still access stored data.
-- A client-supplied sender ID may be spoofed by modified apps. For verified sender identity and anti-spam controls, use a server-side Appwrite Function tied to the calling session.
-- Since one phone is intended to chat with one other ID only, locally store a single partner. The present five-column table has no dedicated `recipient_id`, so a fully reliable multi-contact inbox will require a schema upgrade. Do not expose that as a finished feature.
-- The account's Anonymous/Auth settings, Storage bucket and table permissions are **not automatically configured from GitHub**. Live backend testing remains outstanding.
-- Voice/image sending only, **no audio calling/video calling/video file sharing**.
+- Chat is **not end-to-end encrypted**. Appwrite project administrators can access server-side message contents.
+- There is no account recovery for anonymous identities; an ID can become inaccessible if app data/session is lost.
+- App registration, Permissions and Storage must be set in Appwrite Console. Creating only the APK does not finish the backend.
+- The `sender_id` column is client supplied, so it is not cryptographically verified. A server-side Appwrite Function to bind it to the actual session would be needed for strong sender authentication and abuse prevention.
+- The private chat UI has no automatic exit on screenshot or temporary backgrounding. Android screenshots and screen recording are allowed across the whole app by owner request.
+- The app is private-use only. The existing five-column table and anonymous flow are not a hardened public messaging product.
+- Do not change any other user's Supabase projects. Release APK must be built only with explicit owner permission.
