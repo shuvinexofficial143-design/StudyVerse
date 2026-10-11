@@ -29,7 +29,8 @@ class StudyNote {
 class StudyStorage {
   static const _notesKey = 'studyverse_notes_v1';
   static const _quizKey = 'studyverse_last_quiz_score';
-  static const _tasksKey = 'studyverse_tasks_v1';
+  static const _tasksKey = 'studyverse_nios12_tasks_v2';
+  static const _subjectsKey = 'studyverse_nios12_selected_subjects_v1';
 
   static Future<List<StudyNote>> loadNotes() async {
     final prefs = await SharedPreferences.getInstance();
@@ -38,19 +39,18 @@ class StudyStorage {
       return [
         const StudyNote(
           id: 'sample1',
-          subject: 'Mathematics',
-          title: 'Algebra Revision',
-          body: 'Quadratic equation: ax² + bx + c = 0.\n'
-              'Discriminant: b² - 4ac.\n'
-              'Practice factorisation and completing the square.',
+          subject: 'Political Science',
+          title: 'Constitution Revision',
+          body: 'Read the Preamble and its core ideals.\n'
+              'Review the separation of powers and key institutions.',
         ),
         const StudyNote(
           id: 'sample2',
-          subject: 'Science',
-          title: 'Cell Structure',
-          body: 'Nucleus stores genetic information.\n'
-              'Mitochondria release energy.\n'
-              'Cell membrane controls passage of substances.',
+          subject: 'Introduction to Law',
+          title: 'Law Foundation — Sample Notes',
+          body: 'Explore natural justice, the Indian judicial system,\n'
+              'Fundamental Rights and Lok Adalat.\n'
+              'Law (338) is optional: check your registered subject list.',
         ),
       ];
     }
@@ -70,6 +70,16 @@ class StudyStorage {
       _notesKey,
       jsonEncode(notes.map((note) => note.toJson()).toList()),
     );
+  }
+
+  static Future<List<String>> loadSelectedSubjects() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_subjectsKey) ?? <String>[];
+  }
+
+  static Future<void> saveSelectedSubjects(List<String> subjects) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_subjectsKey, subjects);
   }
 
   static Future<int> lastQuizScore() async {
@@ -102,68 +112,162 @@ class QuizItem {
   final List<String> options;
   final int answer;
   final String explanation;
-  const QuizItem(this.question, this.options, this.answer, this.explanation);
+  final String subject;
+  const QuizItem(
+    this.question,
+    this.options,
+    this.answer,
+    this.explanation, {
+    required this.subject,
+  });
 }
 
+/// Original practice questions for a NIOS Senior Secondary learner.
+/// These are not past NIOS papers, official exam questions or a complete bank.
 const quizItems = <QuizItem>[
   QuizItem(
-    'Which organelle is called the powerhouse of the cell?',
-    ['Nucleus', 'Mitochondrion', 'Ribosome', 'Chloroplast'],
+    'Which part of the Indian Constitution contains Fundamental Rights?',
+    ['Part I', 'Part III', 'Part IV', 'Part IX'],
     1,
-    'Mitochondria produce most of the ATP used by cells.',
+    'Fundamental Rights are set out in Part III of the Constitution.',
+    subject: 'Introduction to Law',
   ),
   QuizItem(
-    'What is 12 × 8?',
-    ['86', '92', '96', '108'],
-    2,
-    '12 multiplied by 8 equals 96.',
-  ),
-  QuizItem(
-    'Which is the chemical symbol for water?',
-    ['O₂', 'CO₂', 'H₂O', 'NaCl'],
-    2,
-    'Water contains two hydrogen atoms and one oxygen atom.',
-  ),
-  QuizItem(
-    'Which planet is known as the Red Planet?',
-    ['Mercury', 'Venus', 'Mars', 'Jupiter'],
-    2,
-    'Mars looks reddish due to iron oxides on its surface.',
-  ),
-  QuizItem(
-    'What is the square root of 144?',
-    ['10', '11', '12', '14'],
-    2,
-    '12 × 12 = 144.',
-  ),
-  QuizItem(
-    'Which part of speech describes a noun?',
-    ['Adjective', 'Verb', 'Adverb', 'Preposition'],
+    'The principle "hear the other side" is related to which idea?',
+    ['Natural justice', 'Absolute monarchy', 'Ex post facto law', 'Diplomacy'],
     0,
-    'An adjective modifies or describes a noun.',
+    'Audi alteram partem is an important principle of natural justice.',
+    subject: 'Introduction to Law',
   ),
   QuizItem(
-    'How many degrees are in a right angle?',
-    ['45', '60', '90', '180'],
-    2,
-    'A right angle measures 90 degrees.',
-  ),
-  QuizItem(
-    'Which gas do plants take in during photosynthesis?',
-    ['Oxygen', 'Carbon dioxide', 'Nitrogen', 'Hydrogen'],
+    'Which forum helps parties settle certain disputes through compromise?',
+    ['Election Commission', 'Lok Adalat', 'Central Bank', 'Planning Commission'],
     1,
-    'Plants use carbon dioxide and water to make sugars.',
+    'Lok Adalat is an alternative dispute resolution forum.',
+    subject: 'Introduction to Law',
   ),
   QuizItem(
-    'What is the largest ocean on Earth?',
-    ['Atlantic', 'Indian', 'Arctic', 'Pacific'],
-    3,
-    'The Pacific Ocean is Earth\'s largest ocean.',
+    'Which of these usually concerns a private property dispute?',
+    ['Civil law', 'Criminal law', 'International space law', 'Military law'],
+    0,
+    'Private property disputes generally fall under civil law.',
+    subject: 'Introduction to Law',
   ),
   QuizItem(
-    'What is 15% of 200?',
-    ['15', '20', '30', '35'],
+    'Directive Principles of State Policy appear in which Part?',
+    ['Part II', 'Part III', 'Part IV', 'Part V'],
     2,
-    '10% is 20 and 5% is 10, so 15% is 30.',
+    'Directive Principles of State Policy are found in Part IV.',
+    subject: 'Introduction to Law',
+  ),
+  QuizItem(
+    'What is the highest court in the Indian judicial hierarchy?',
+    ['District Court', 'High Court', 'Supreme Court', 'Lok Adalat'],
+    2,
+    'The Supreme Court of India sits at the apex of the court hierarchy.',
+    subject: 'Introduction to Law',
+  ),
+  QuizItem(
+    'Which constitutional organ primarily enacts legislation?',
+    ['Legislature', 'Judiciary', 'Election staff', 'Police'],
+    0,
+    'Legislatures enact laws within their constitutional powers.',
+    subject: 'Political Science',
+  ),
+  QuizItem(
+    'What does universal adult franchise refer to?',
+    ['Voting restricted to officials', 'Adult citizens voting subject to law',
+     'Only taxpayers voting', 'Only graduates voting'],
+    1,
+    'Adult citizens meeting the legal requirements have the right to vote.',
+    subject: 'Political Science',
+  ),
+  QuizItem(
+    'Which body conducts elections to Parliament in India?',
+    ['Reserve Bank', 'Election Commission of India', 'Supreme Court Registry',
+     'NITI Aayog'],
+    1,
+    'The Election Commission of India administers Parliamentary elections.',
+    subject: 'Political Science',
+  ),
+  QuizItem(
+    'When did India become a republic?',
+    ['15 August 1947', '26 January 1950', '2 October 1952',
+     '26 November 1949'],
+    1,
+    'The Constitution came into force on 26 January 1950.',
+    subject: 'History',
+  ),
+  QuizItem(
+    'In which year was the Quit India Movement launched?',
+    ['1919', '1930', '1942', '1950'],
+    2,
+    'The Quit India Movement began in August 1942.',
+    subject: 'History',
+  ),
+  QuizItem(
+    'The Indian National Congress was founded in which year?',
+    ['1857', '1885', '1905', '1947'],
+    1,
+    'The Indian National Congress was founded in 1885.',
+    subject: 'History',
+  ),
+  QuizItem(
+    'Choose the grammatically correct sentence.',
+    ['She go to school.', 'She goes to school.',
+     'She going to school.', 'She gone to school.'],
+    1,
+    'The third-person singular subject she takes goes in the present simple.',
+    subject: 'English',
+  ),
+  QuizItem(
+    'Which word is a synonym of "assist"?',
+    ['Help', 'Ignore', 'Refuse', 'Delay'],
+    0,
+    'Assist means to help someone.',
+    subject: 'English',
+  ),
+  QuizItem(
+    'Which sentence is in the past tense?',
+    ['They study.', 'They will study.',
+     'They studied.', 'They are studying.'],
+    2,
+    'Studied is the past form of study.',
+    subject: 'English',
+  ),
+  QuizItem(
+    'इनमें से कौन-सा शब्द संज्ञा है?',
+    ['सुंदर', 'विद्यालय', 'धीरे', 'जल्दी'],
+    1,
+    'विद्यालय किसी स्थान का नाम है, इसलिए यह संज्ञा है।',
+    subject: 'Hindi',
+  ),
+  QuizItem(
+    '“दिन” का विलोम क्या है?',
+    ['प्रकाश', 'रात', 'सुबह', 'समय'],
+    1,
+    'दिन का विलोम रात है।',
+    subject: 'Hindi',
+  ),
+  QuizItem(
+    '“मैं पढ़ रहा हूँ” किस काल का उदाहरण है?',
+    ['भूतकाल', 'भविष्यत्काल', 'वर्तमान काल', 'इनमें से कोई नहीं'],
+    2,
+    'यह वाक्य वर्तमान में जारी क्रिया बताता है।',
+    subject: 'Hindi',
+  ),
+  QuizItem(
+    'The study of human society and social relationships is called:',
+    ['Sociology', 'Astronomy', 'Geology', 'Botany'],
+    0,
+    'Sociology studies society, social groups and relationships.',
+    subject: 'Sociology',
+  ),
+  QuizItem(
+    'Which is an example of a social institution?',
+    ['Family', 'Mountain', 'River', 'Mineral'],
+    0,
+    'Family is a social institution organised around social relationships.',
+    subject: 'Sociology',
   ),
 ];
