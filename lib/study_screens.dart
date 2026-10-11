@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'main.dart';
 import 'study_data.dart';
 import 'private_space.dart';
+import 'nios_curriculum.dart';
+import 'package:flutter/services.dart';
 
-const subjectNames = ['Mathematics', 'Science', 'English', 'General Knowledge'];
+final subjectNames = niosSubjects.map((subject) => subject.name).toList();
 
 class StudyScreen extends StatefulWidget {
   const StudyScreen({super.key});
@@ -13,6 +15,7 @@ class StudyScreen extends StatefulWidget {
 
 class _StudyScreenState extends State<StudyScreen> {
   List<StudyNote> notes = [];
+  List<String> registeredSubjects = [];
   String selectedSubject = 'All';
 
   @override
@@ -23,13 +26,148 @@ class _StudyScreenState extends State<StudyScreen> {
 
   Future<void> _reload() async {
     final saved = await StudyStorage.loadNotes();
-    if (mounted) setState(() => notes = saved);
+    final enrolled = await StudyStorage.loadSelectedSubjects();
+    if (mounted) {
+      setState(() {
+        notes = saved;
+        registeredSubjects = enrolled;
+      });
+    }
+  }
+
+  Future<void> _chooseSubjects() async {
+    final chosen = registeredSubjects.toSet();
+    final updated = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (bottomContext) => StatefulBuilder(
+        builder: (dialogContext, rebuild) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(dialogContext).height * .78,
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(18, 4, 18, 8),
+                  child: Column(children: [
+                    Text('Select your actual NIOS 12 subjects',
+                      style: TextStyle(fontWeight: FontWeight.w800,
+                        fontSize: 17)),
+                    SizedBox(height: 6),
+                    Text('Use your registration/admission record. These are '
+                      'options, not confirmed enrolments. Select up to seven.',
+                      style: TextStyle(fontSize: 12,
+                        color: Color(0xFF6D7C98)),
+                      textAlign: TextAlign.center),
+                  ]),
+                ),
+                Expanded(child: ListView.builder(
+                  itemCount: niosSubjects.length,
+                  itemBuilder: (context, index) {
+                    final subject = niosSubjects[index];
+                    return CheckboxListTile(
+                      title: Text(subject.name),
+                      subtitle: Text('NIOS subject code: ${subject.code}'),
+                      value: chosen.contains(subject.name),
+                      onChanged: (selected) {
+                        rebuild(() {
+                          if (selected == true) {
+                            if (chosen.length < 7) chosen.add(subject.name);
+                          } else {
+                            chosen.remove(subject.name);
+                          }
+                        });
+                      },
+                    );
+                  },
+                )),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(
+                          dialogContext, chosen.toList()),
+                      child: const Text('Save my subjects'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (updated == null) return;
+    await StudyStorage.saveSelectedSubjects(updated);
+    if (mounted) {
+      setState(() {
+        registeredSubjects = updated;
+        if (selectedSubject != 'All' &&
+            !registeredSubjects.contains(selectedSubject)) {
+          selectedSubject = 'All';
+        }
+      });
+    }
+  }
+
+  void _viewLawChapters() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * .80,
+          child: Column(children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Column(children: [
+                Text('Introduction to Law (338)',
+                  style: TextStyle(fontWeight: FontWeight.w800,
+                    fontSize: 19)),
+                SizedBox(height: 5),
+                Text('Official NIOS chapter titles. Study material is '
+                  'available from NIOS. This subject is optional.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12)),
+              ]),
+            ),
+            TextButton.icon(
+              onPressed: () async {
+                await Clipboard.setData(const ClipboardData(
+                  text: 'https://digital.nios.ac.in/topic.php?id=338en'));
+                if (sheetContext.mounted) {
+                  ScaffoldMessenger.of(sheetContext).showSnackBar(
+                    const SnackBar(content: Text(
+                      'NIOS official material link copied')));
+                }
+              },
+              icon: const Icon(Icons.copy),
+              label: const Text('Copy official lesson link'),
+            ),
+            Expanded(child: ListView.builder(
+              itemCount: introductionToLawChapters.length,
+              itemBuilder: (context, index) => ListTile(
+                leading: CircleAvatar(
+                  radius: 16,
+                  child: Text('${index + 1}',
+                    style: const TextStyle(fontSize: 11)),
+                ),
+                title: Text(introductionToLawChapters[index]),
+              ),
+            )),
+          ]),
+        ),
+      ),
+    );
   }
 
   Future<void> _addNote() async {
     final title = TextEditingController();
     final body = TextEditingController();
-    String subject = subjectNames.first;
+    String subject = registeredSubjects.isNotEmpty
+        ? registeredSubjects.first : 'Introduction to Law';
     final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -120,13 +258,39 @@ class _StudyScreenState extends State<StudyScreen> {
         selectedSubject == 'All' || note.subject == selectedSubject).toList();
     return Column(children: [
       const StudyHeader(
-        title: 'Subjects & Notes',
-        subtitle: 'Organise materials and revise easily.',
+        title: 'NIOS Study & Notes',
+        subtitle: 'Class 12 lessons • Your registered subjects',
       ),
       Expanded(child: ListView(padding: const EdgeInsets.all(18), children: [
-        const StudySection('My subjects'),
+        const StudySection('NIOS Senior Secondary • Class 12'),
+        StudyPanel(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('My registered subjects',
+              style: TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text(registeredSubjects.isEmpty
+                ? 'No subjects chosen yet. Select subjects from the '
+                  'actual NIOS admission record.'
+                : registeredSubjects.join(' • ')),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _chooseSubjects,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Edit my subjects'),
+            ),
+          ],
+        )),
+        const SizedBox(height: 12),
+        StudyFeatureTile(
+          title: 'Introduction to Law (338)',
+          description: 'Explore 31 official law chapters • Optional subject',
+          icon: Icons.gavel, color: const Color(0xFFBD5684),
+          onTap: _viewLawChapters,
+        ),
+        const StudySection('Filter notes'),
         Wrap(spacing: 8, runSpacing: 7,
-          children: ['All', ...subjectNames].map((subject) => ChoiceChip(
+          children: ['All', ...registeredSubjects].map((subject) => ChoiceChip(
             label: Text(subject), selected: subject == selectedSubject,
             onSelected: (_) => setState(() => selectedSubject = subject),
           )).toList(),
@@ -166,15 +330,45 @@ class _StudyScreenState extends State<StudyScreen> {
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key});
   @override
-  State<QuizScreen> createState() => _QuizScreenState();
+  State<QuizScreen> createState() => QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> {
+class QuizScreenState extends State<QuizScreen> {
   bool started = false;
   bool finished = false;
   int index = 0;
   int score = 0;
   int? selectedAnswer;
+  String quizSubject = 'Mixed NIOS';
+
+  List<QuizItem> get currentQuestions {
+    if (quizSubject == 'Mixed NIOS') {
+      // Original sample questions from several NIOS-related subjects.
+      return quizItems.take(10).toList();
+    }
+    return quizItems.where((question) =>
+      question.subject == quizSubject).toList();
+  }
+
+  bool handleBack() {
+    if (!started) return false;
+    if (finished) {
+      setState(() {
+        finished = false;
+        started = false;
+      });
+      return true;
+    }
+    if (index > 0) {
+      setState(() {
+        index--;
+        selectedAnswer = null;
+      });
+      return true;
+    }
+    setState(() => started = false);
+    return true;
+  }
 
   void _start() => setState(() {
     started = true;
@@ -186,8 +380,8 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Future<void> _next() async {
     if (selectedAnswer == null) return;
-    if (selectedAnswer == quizItems[index].answer) score++;
-    if (index == quizItems.length - 1) {
+    if (selectedAnswer == currentQuestions[index].answer) score++;
+    if (index == currentQuestions.length - 1) {
       await StudyStorage.saveQuizScore(score);
       if (mounted) setState(() => finished = true);
     } else {
@@ -200,21 +394,36 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) => Column(children: [
-    const StudyHeader(title: 'Quiz Zone',
-        subtitle: 'Practice  •  Test  •  Improve'),
+    const StudyHeader(title: 'NIOS Practice Quiz',
+        subtitle: 'Class 12 • Law, humanities and languages'),
     Expanded(child: ListView(padding: const EdgeInsets.all(18), children: [
       if (!started) ...[
-        const StudySection('Ready to practise?'),
+        const StudySection('Choose a subject'),
+        Wrap(
+          spacing: 7, runSpacing: 5,
+          children: <String>[
+            'Mixed NIOS',
+            ...quizItems.map((question) => question.subject).toSet(),
+          ].map((subject) => ChoiceChip(
+            label: Text(subject),
+            selected: subject == quizSubject,
+            onSelected: (_) => setState(() => quizSubject = subject),
+          )).toList(),
+        ),
+        const SizedBox(height: 12),
         StudyPanel(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Icon(Icons.emoji_events_outlined,
                 color: Color(0xFFFFA500), size: 42),
             const SizedBox(height: 12),
-            const Text('Quick Knowledge Challenge',
+            const Text('NIOS Revision Challenge',
               style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
             const SizedBox(height: 6),
-            const Text('10 questions across maths, science, English and general knowledge.'),
+            const Text('Original practice questions, not official NIOS past papers.'),
+            const SizedBox(height: 12),
+            Text('${currentQuestions.length} practice questions • $quizSubject',
+              style: const TextStyle(color: studyBlue)),
             const SizedBox(height: 16),
             SizedBox(width: double.infinity,
               child: FilledButton.icon(onPressed: _start,
@@ -226,9 +435,9 @@ class _QuizScreenState extends State<QuizScreen> {
         const StudyPanel(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Chapter quizzes', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('NIOS subject quizzes', style: TextStyle(fontWeight: FontWeight.bold)),
             SizedBox(height: 5),
-            Text('Additional question banks and mock tests will be added next.',
+            Text('More NIOS curriculum-mapped practice and mock tests are planned.',
                 style: TextStyle(color: Color(0xFF73829B), fontSize: 12)),
           ],
         )),
@@ -260,7 +469,7 @@ class _QuizScreenState extends State<QuizScreen> {
         StudyPanel(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(quizItems[index].question,
+            Text(currentQuestions[index].question,
               style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
             const SizedBox(height: 18),
             for (var answer = 0; answer < 4; answer++) ...[
@@ -272,7 +481,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       : Icons.radio_button_unchecked,
                   color: studyBlue,
                 ),
-                title: Text(quizItems[index].options[answer]),
+                title: Text(currentQuestions[index].options[answer]),
                 tileColor: selectedAnswer == answer
                     ? const Color(0xFFEAF2FF) : const Color(0xFFF8FAFF),
                 shape: RoundedRectangleBorder(
@@ -301,10 +510,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
   int lastScore = 0;
   Set<int> done = {};
   static const tasks = [
-    'Revise your maths notes',
-    'Read one science chapter',
-    'Complete 10 practice questions',
-    'Write your own study note',
+    'Review an enrolled NIOS subject',
+    'Revise one chapter from the NIOS material',
+    'Complete a subject practice quiz',
+    'Write or review your own study notes',
   ];
 
   @override
@@ -328,7 +537,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   @override
   Widget build(BuildContext context) => Column(children: [
-    const StudyHeader(title: 'My Progress',
+    const StudyHeader(title: 'NIOS Progress',
       subtitle: 'Small efforts create big results.'),
     Expanded(child: ListView(padding: const EdgeInsets.all(18), children: [
       const StudySection('Study overview'),
@@ -336,7 +545,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         Expanded(child: StudyPanel(child: Column(children: [
           const Icon(Icons.fact_check_outlined, color: studyBlue, size: 30),
           const SizedBox(height: 8),
-          Text('$lastScore / 10', style: const TextStyle(
+          Text('$lastScore correct', style: const TextStyle(
             fontSize: 23, fontWeight: FontWeight.w900)),
           const Text('Last quiz', style: TextStyle(fontSize: 12)),
         ]))),
@@ -395,8 +604,8 @@ class SettingsScreen extends StatelessWidget {
       const StudySection('Personalisation'),
       const StudyPanel(child: ListTile(
         leading: Icon(Icons.school_outlined, color: studyBlue),
-        title: Text('Study Preferences'),
-        subtitle: Text('Learning goals and subjects'),
+        title: Text('NIOS Study Preferences'),
+        subtitle: Text('Class 12 • Choose subjects in Study tab'),
       )),
       const SizedBox(height: 12),
       const StudyPanel(child: ListTile(
