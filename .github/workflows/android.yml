@@ -37,17 +37,15 @@ jobs:
           STUDYVERSE_APPWRITE_DATABASE_ID: ${{ vars.STUDYVERSE_APPWRITE_DATABASE_ID }}
           STUDYVERSE_APPWRITE_CHAT_TABLE_ID: ${{ vars.STUDYVERSE_APPWRITE_CHAT_TABLE_ID }}
           STUDYVERSE_APPWRITE_MEDIA_BUCKET_ID: ${{ vars.STUDYVERSE_APPWRITE_MEDIA_BUCKET_ID }}
-          STUDYVERSE_APPWRITE_PRIVATE_TEAM_ID: ${{ vars.STUDYVERSE_APPWRITE_PRIVATE_TEAM_ID }}
         run: |
           flutter build apk --release \
             --dart-define="SUPABASE_URL=$STUDYVERSE_SUPABASE_URL" \
             --dart-define="SUPABASE_ANON_KEY=$STUDYVERSE_SUPABASE_ANON_KEY" \
-            --dart-define="APPWRITE_ENDPOINT=$STUDYVERSE_APPWRITE_ENDPOINT" \
-            --dart-define="APPWRITE_PROJECT_ID=$STUDYVERSE_APPWRITE_PROJECT_ID" \
-            --dart-define="APPWRITE_DATABASE_ID=$STUDYVERSE_APPWRITE_DATABASE_ID" \
-            --dart-define="APPWRITE_CHAT_TABLE_ID=$STUDYVERSE_APPWRITE_CHAT_TABLE_ID" \
-            --dart-define="APPWRITE_MEDIA_BUCKET_ID=$STUDYVERSE_APPWRITE_MEDIA_BUCKET_ID" \
-            --dart-define="APPWRITE_PRIVATE_TEAM_ID=$STUDYVERSE_APPWRITE_PRIVATE_TEAM_ID"
+            --dart-define="APPWRITE_ENDPOINT=${STUDYVERSE_APPWRITE_ENDPOINT:-https://sgp.cloud.appwrite.io/v1}" \
+            --dart-define="APPWRITE_PROJECT_ID=${STUDYVERSE_APPWRITE_PROJECT_ID:-6acb25f9002eed3e32d5}" \
+            --dart-define="APPWRITE_DATABASE_ID=${STUDYVERSE_APPWRITE_DATABASE_ID:-6acb26b800128ccfb9b7}" \
+            --dart-define="APPWRITE_CHAT_TABLE_ID=${STUDYVERSE_APPWRITE_CHAT_TABLE_ID:-6acb27370006d588e3f4}" \
+            --dart-define="APPWRITE_MEDIA_BUCKET_ID=${STUDYVERSE_APPWRITE_MEDIA_BUCKET_ID:-studyverse-private-media}"
       - name: Upload APK (manual only)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
