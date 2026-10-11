@@ -55,6 +55,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Quiz').last);
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Start Quick Quiz'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Start Quick Quiz'));
     await tester.pumpAndSettle();
     expect(find.text('Question 1 of 10'), findsOneWidget);
