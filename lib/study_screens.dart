@@ -448,6 +448,7 @@ class QuizScreen extends StatefulWidget {
 }
 
 class QuizScreenState extends State<QuizScreen> {
+  final ScrollController _quizScroll = ScrollController();
   bool started = false;
   bool finished = false;
   int index = 0;
@@ -475,6 +476,18 @@ class QuizScreenState extends State<QuizScreen> {
       question.subject == quizSubject).toList();
   }
 
+  void _scrollToQuestionTop() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _quizScroll.hasClients) _quizScroll.jumpTo(0);
+    });
+  }
+
+  @override
+  void dispose() {
+    _quizScroll.dispose();
+    super.dispose();
+  }
+
   bool handleBack() {
     if (!started) return false;
     if (finished) {
@@ -482,6 +495,7 @@ class QuizScreenState extends State<QuizScreen> {
         finished = false;
         started = false;
       });
+      _scrollToQuestionTop();
       return true;
     }
     if (index > 0) {
@@ -489,20 +503,25 @@ class QuizScreenState extends State<QuizScreen> {
         index--;
         selectedAnswer = answers[index];
       });
+      _scrollToQuestionTop();
       return true;
     }
     setState(() => started = false);
+    _scrollToQuestionTop();
     return true;
   }
 
-  void _start() => setState(() {
-    started = true;
-    finished = false;
-    index = 0;
-    score = 0;
-    selectedAnswer = null;
-    answers = List<int?>.filled(currentQuestions.length, null);
-  });
+  void _start() {
+    setState(() {
+      started = true;
+      finished = false;
+      index = 0;
+      score = 0;
+      selectedAnswer = null;
+      answers = List<int?>.filled(currentQuestions.length, null);
+    });
+    _scrollToQuestionTop();
+  }
 
   Future<void> _next() async {
     if (selectedAnswer == null) return;
@@ -523,12 +542,14 @@ class QuizScreenState extends State<QuizScreen> {
           score = totalCorrect;
           finished = true;
         });
+        _scrollToQuestionTop();
       }
     } else {
       setState(() {
         index++;
         selectedAnswer = answers[index];
       });
+      _scrollToQuestionTop();
     }
   }
 
@@ -536,7 +557,8 @@ class QuizScreenState extends State<QuizScreen> {
   Widget build(BuildContext context) => Column(children: [
     const StudyHeader(title: 'NIOS Practice Quiz',
         subtitle: 'Class 12 • Law, humanities and languages'),
-    Expanded(child: ListView(padding: const EdgeInsets.all(18), children: [
+    Expanded(child: ListView(controller: _quizScroll,
+      padding: const EdgeInsets.all(18), children: [
       if (!started) ...[
         const StudySection('Choose a subject'),
         Wrap(
