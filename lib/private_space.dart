@@ -8,7 +8,6 @@ import 'main.dart';
 import 'chat_media.dart';
 import 'chat_media_bubble.dart';
 import 'appwrite_private_chat.dart';
-import 'private_screen_guard.dart';
 
 const _secureStore = FlutterSecureStorage();
 const _pinKey = 'studyverse_private_vault_pin_v1';
@@ -35,7 +34,6 @@ class _VaultScreenState extends State<VaultScreen> {
   @override
   void initState() {
     super.initState();
-    PrivateScreenGuard.enter();
     _load();
   }
 
@@ -107,7 +105,6 @@ class _VaultScreenState extends State<VaultScreen> {
 
   @override
   void dispose() {
-    PrivateScreenGuard.leave();
     _controller.dispose();
     super.dispose();
   }
@@ -201,7 +198,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
   @override
   void initState() {
     super.initState();
-    PrivateScreenGuard.enter();
     WidgetsBinding.instance.addObserver(this);
     if (widget.onlineConfigured) {
       media = ChatMediaService(client);
@@ -379,7 +375,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
 
   @override
   void dispose() {
-    PrivateScreenGuard.leave();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_disposeMedia());
     input.dispose();
