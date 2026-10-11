@@ -7,20 +7,20 @@ A Flutter Android study app tailored to **NIOS Senior Secondary (Class 12)** lea
 ## Current features
 
 - Home: NIOS Class 12 overview and advocate career path
-- Study: select actual NIOS subjects, view official Law (338) chapter titles, add/edit/view/delete offline notes, open official NIOS subject materials, import offline PDF documents, create practice flashcards and schedule weekly revision sessions
+- Study: select actual NIOS subjects, view Law (338) chapter titles, read **24 bundled original Hindi/English revision notes** offline, add/edit personal notes, download six official NIOS Law 338 lesson PDFs into the offline reader (internet needed on first download), import personal PDFs, create flashcards, and plan revision. Other subject PDFs are linked from the official NIOS catalogue.
 - Quiz: sample **original practice questions** by NIOS-related subject (not official past papers), immediate result, correct-answer explanations and local attempt history
 - Progress: saved quiz score and revision tasks
 - Android back: navigates to the previous quiz question/previous tab, with a confirmation before leaving Home
 - Settings: access to a protected Resource Vault
 - Vault: accepts an alphanumeric **6–32 character access code**. Set your own access code (e.g., your chosen private phrase) the first time you open the vault. It is stored using Android secure storage, not hardcoded in this public repository.
 - Chat: soft pink heart-themed private area with automatic lock; Appwrite **Create My Chat ID** (anonymous server identity), message a partner's Chat ID, incoming chat auto-detection, text, private image sharing and voice notes. No email, invitation, QR or calls. Requires completing Appwrite Console permissions and Storage setup and live Android tests.
-- Privacy defaults: no push chat notifications, and Android screenshot / app-preview protection
+- Privacy defaults: no push chat notifications. **Screenshots are allowed on all screens**, including the Vault and Private Chat, at the owner's request. Anyone holding a screenshot can view its contents.
 
 **Important: NIOS Class 12 subject choice must match the learner's actual registration.** The available list is not evidence of the subjects she enrolled in. Introduction to Law (338) is offered as a subject, but is **not automatically required** for an advocate career. See the official [NIOS subject list](https://rcpune.nios.ac.in/senior-secondary-courses-material.html) and [Introduction to Law e-content](https://digital.nios.ac.in/topic.php?id=338en).
 
 **Security limitations:** Leaving chat does not delete its server history. The current server-side messages are **not end-to-end encrypted**: the database operator can read plaintext. A local access code is not a substitute for server authentication or client-side message encryption. The passcode is set at first use and is *not* automatically preloaded from the code. This is a testing build, not a security-audited app.
 
-**Study file privacy:** imported PDFs, notes, flashcards and study schedules currently persist locally on that Android device; there is no cross-device study data sync or automatic cloud backup. PDFs must be obtained separately from official sources or user-supplied files. The small sample MCQ bank is not a complete NIOS course and must not be represented as one.
+**Study file privacy:** imported PDFs, notes, flashcards and study schedules currently persist locally on that Android device; there is no cross-device study data sync or automatic cloud backup. The PDF library can fetch six official NIOS law chapters on demand, plus import a user's files. Textbooks are not embedded in the APK. The small sample MCQ bank is not a complete NIOS course and must not be represented as one.
 
 **Build policy:** Pushing to main triggers `flutter analyze` and `flutter test` only. An APK is built **only** on a manually dispatched GitHub Actions run. Do not create an APK until requested.
 
@@ -82,10 +82,10 @@ do not run it against production databases.
 ## Roadmap
 
 - [x] NIOS Class 12 dashboard and subject picker
-- [x] Offline notes with editing, NIOS practice quiz with explanations/history, flashcards, weekly planner and local PDF import
+- [x] 24 short original offline notes, six optional official Law PDF downloads, manual PDF import, editable notes, practice quiz, flashcards and planner
 - [x] Local alphanumeric access-code gate, safe Android Back and quick exit
 - [x] Appwrite Chat ID UI/client for two phones and private text/photo/voice message permissions (source only)
 - [ ] Finish Appwrite anonymous Auth, private Storage and permissions; test on two actual Android devices with a third unauthorized account
-- [ ] Review encryption, screen locking, PIN lockout persistence and backups
+- [ ] Review encryption, PIN lockout persistence, backups, and screenshot-sharing privacy implications
 - [ ] Add larger official syllabus-aligned banks, complete subject chapter study notes, previous papers/TMA support and real-device usability tests
 - [ ] Verify app signing and installable release builds on physical devices
