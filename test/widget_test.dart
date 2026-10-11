@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:studyverse/main.dart';
+import 'package:studyverse/study_screens.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,7 +38,9 @@ void main() {
     await tester.tap(find.text('Study').last);
     await tester.pumpAndSettle();
     final pdfLink = find.text('Offline PDF Reader');
-    await tester.ensureVisible(pdfLink);
+    final studyScroll = find.descendant(
+      of: find.byType(StudyScreen), matching: find.byType(Scrollable));
+    await tester.scrollUntilVisible(pdfLink, 200, scrollable: studyScroll.first);
     await tester.pumpAndSettle();
     await tester.tap(pdfLink);
     await tester.pumpAndSettle();
