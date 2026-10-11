@@ -125,13 +125,14 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
     try {
       // Recover an existing anonymous session instead of trying to create
       // another one when the first attempt partly succeeded.
-      aw.Models.User<aw.Models.Preferences>? existing;
+      bool hasSession = false;
       try {
-        existing = await _account.get();
+        await _account.get();
+        hasSession = true;
       } on aw.AppwriteException catch (e) {
         if (e.code != 401) rethrow;
       }
-      if (existing == null) await _account.createAnonymousSession();
+      if (!hasSession) await _account.createAnonymousSession();
       final user = await _account.get();
       await _restoreIdentity(user.$id);
     } on aw.AppwriteException catch (e) {
