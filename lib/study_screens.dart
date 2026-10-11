@@ -611,14 +611,9 @@ class QuizScreenState extends State<QuizScreen> {
                   style: const TextStyle(fontWeight: FontWeight.w700))),
               ]),
               const SizedBox(height: 8),
-              Text('Your answer: ' +
-                (answers[questionIndex] == null ? 'Not answered'
-                : currentQuestions[questionIndex].options[
-                    answers[questionIndex]!])),
+              Text('Your answer: ${answers[questionIndex] == null ? 'Not answered' : currentQuestions[questionIndex].options[answers[questionIndex]!]}')),
               const SizedBox(height: 5),
-              Text('Correct answer: ' +
-                currentQuestions[questionIndex].options[
-                    currentQuestions[questionIndex].answer],
+              Text('Correct answer: ${currentQuestions[questionIndex].options[currentQuestions[questionIndex].answer]}',
                 style: const TextStyle(color: Color(0xFF12966F))),
               const SizedBox(height: 5),
               Text(currentQuestions[questionIndex].explanation),
