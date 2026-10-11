@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:appwrite/appwrite.dart' as aw;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
@@ -14,20 +16,25 @@ import 'package:record/record.dart';
 /// Appwrite team-level permissions enforce access for the two invited members.
 /// Private by permissions, but NOT end-to-end encrypted.
 class StudyVerseAppwrite {
-  static const endpoint = String.fromEnvironment('APPWRITE_ENDPOINT');
-  static const projectId = String.fromEnvironment('APPWRITE_PROJECT_ID');
-  static const databaseId = String.fromEnvironment('APPWRITE_DATABASE_ID');
-  static const tableId = String.fromEnvironment('APPWRITE_CHAT_TABLE_ID');
-  static const bucketId = String.fromEnvironment('APPWRITE_MEDIA_BUCKET_ID');
-  static const teamId = String.fromEnvironment('APPWRITE_PRIVATE_TEAM_ID');
+  // Public project identifiers, not private API keys.
+  // Build-time definitions can override the defaults.
+  static const endpoint = String.fromEnvironment('APPWRITE_ENDPOINT',
+      defaultValue: 'https://sgp.cloud.appwrite.io/v1');
+  static const projectId = String.fromEnvironment('APPWRITE_PROJECT_ID',
+      defaultValue: '6acb25f9002eed3e32d5');
+  static const databaseId = String.fromEnvironment('APPWRITE_DATABASE_ID',
+      defaultValue: '6acb26b800128ccfb9b7');
+  static const tableId = String.fromEnvironment('APPWRITE_CHAT_TABLE_ID',
+      defaultValue: '6acb27370006d588e3f4');
+  static const bucketId = String.fromEnvironment('APPWRITE_MEDIA_BUCKET_ID',
+      defaultValue: 'studyverse-private-media');
 
   static bool get configured =>
       endpoint.startsWith('https://') &&
       projectId.isNotEmpty &&
       databaseId.isNotEmpty &&
       tableId.isNotEmpty &&
-      bucketId.isNotEmpty &&
-      teamId.isNotEmpty;
+      bucketId.isNotEmpty;
 
   static aw.Client createClient() =>
       aw.Client().setEndpoint(endpoint).setProject(projectId);
@@ -44,8 +51,7 @@ class AppwritePrivateChatScreen extends StatefulWidget {
 
 class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
     with WidgetsBindingObserver {
-  final _email = TextEditingController();
-  final _password = TextEditingController();
+  final _peerController = TextEditingController();
   final _text = TextEditingController();
   final _recorder = AudioRecorder();
   final _picker = ImagePicker();
@@ -54,14 +60,15 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
   late final aw.Account _account = aw.Account(_client);
   late final aw.TablesDB _database = aw.TablesDB(_client);
   late final aw.Storage _storage = aw.Storage(_client);
-  late final aw.Teams _teams = aw.Teams(_client);
   late final aw.Realtime _realtime = aw.Realtime(_client);
 
   aw.RealtimeSubscription? _subscription;
   StreamSubscription? _events;
   final List<Map<String, dynamic>> _messages = [];
   String? _senderId;
+  String? _peerId;
   String? _error;
+  static const _savedPeerKey = 'studyverse_appwrite_peer_v1';
   bool _loading = true;
   bool _sending = false;
   bool _recording = false;
@@ -89,77 +96,108 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
 
   Future<void> _boot() async {
     if (!StudyVerseAppwrite.configured) {
-      if (mounted) setState(() { _loading = false; });
+      if (mounted) setState(() => _loading = false);
       return;
     }
     try {
-      final user = await _account.get();
-      await _authorizeTeam(user.$id);
+      final current = await _account.get();
+      await _restoreIdentity(current.$id);
     } on aw.AppwriteException catch (e) {
       if (mounted && !_exited) {
         setState(() {
           _loading = false;
-          // A missing session is normal; other errors should not be silent.
-          _error = e.code == 401 ? null : 'Unable to check session. ${e.message}';
+          // A 401 indicates first install: show a Create Chat ID button.
+          _error = e.code == 401 ? null : 'Cannot load chat ID: ${e.message}';
         });
       }
     } catch (_) {
       if (mounted && !_exited) {
-        setState(() { _loading = false; _error = 'Network unavailable.'; });
+        setState(() { _loading = false; _error = 'Internet unavailable.'; });
       }
     }
   }
 
-  Future<void> _authorizeTeam(String userId) async {
-    final teamList = await _teams.list();
-    final member = teamList.teams.any(
-      (team) => team.$id == StudyVerseAppwrite.teamId);
-    if (!member) {
-      if (mounted) {
-        setState(() {
-          _senderId = null;
-          _error = 'This account has not been approved for this private pair.';
-          _loading = false;
-        });
+  Future<void> _createMyChatId() async {
+    if (_sending || _exited) return;
+    setState(() { _sending = true; _error = null; });
+    try {
+      await _account.createAnonymousSession();
+      final user = await _account.get();
+      await _restoreIdentity(user.$id);
+    } on aw.AppwriteException catch (e) {
+      if (mounted && !_exited) {
+        setState(() => _error =
+            e.message ?? 'Could not create Chat ID. Enable Anonymous Auth.');
       }
-      return;
+    } catch (_) {
+      if (mounted && !_exited) {
+        setState(() => _error = 'Could not create Chat ID. Check internet.');
+      }
+    } finally {
+      if (mounted && !_exited) setState(() => _sending = false);
     }
+  }
+
+  Future<void> _restoreIdentity(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final peer = prefs.getString(_savedPeerKey);
     if (_exited || !mounted) return;
     setState(() {
       _senderId = userId;
+      _peerId = peer;
+      _peerController.text = peer ?? '';
       _error = null;
       _loading = false;
     });
+    if (peer != null && peer.isNotEmpty) await _startRealtime();
+  }
+
+  Future<void> _savePeer() async {
+    final id = _peerController.text.trim();
+    // Appwrite user ID is a server-issued identifier, not an email.
+    if (id.length < 8 || id.length > 64 || id == _senderId ||
+        !RegExp(r'^[a-zA-Z0-9._-]+$').hasMatch(id)) {
+      _notice('Enter the other phone\'s valid Chat ID.');
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_savedPeerKey, id);
+    if (_exited || !mounted) return;
+    setState(() { _peerId = id; _error = null; });
+    await _startRealtime();
+  }
+
+  Future<void> _startRealtime() async {
+    _events?.cancel();
+    _subscription?.unsubscribe();
+    _subscription = null;
     await _loadMessages();
-    _events = _realtime.subscribe([
+    if (_exited) return;
+    _subscription = _realtime.subscribe([
       'tablesdb.${StudyVerseAppwrite.databaseId}.tables.${StudyVerseAppwrite.tableId}.rows',
-    ]).stream.listen((_) {
+    ]);
+    _events = _subscription!.stream.listen((_) {
       if (!_exited) unawaited(_loadMessages());
     });
   }
 
-  Future<void> _signIn() async {
-    if (_sending || _email.text.trim().isEmpty || _password.text.isEmpty) return;
-    setState(() { _sending = true; _error = null; });
-    try {
-      await _account.createEmailPasswordSession(
-        email: _email.text.trim(),
-        password: _password.text,
-      );
-      _password.clear();
-      final user = await _account.get();
-      await _authorizeTeam(user.$id);
-    } on aw.AppwriteException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'Sign-in failed.');
-    } catch (_) {
-      if (mounted) setState(() => _error = 'Sign-in failed. Check internet.');
-    } finally {
-      if (mounted) setState(() => _sending = false);
+  Future<void> _changeContact() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_savedPeerKey);
+    await _events?.cancel();
+    _subscription?.unsubscribe();
+    _subscription = null;
+    if (mounted && !_exited) {
+      setState(() {
+        _peerId = null;
+        _peerController.clear();
+        _messages.clear();
+      });
     }
   }
 
   Future<void> _loadMessages() async {
-    if (_senderId == null || _exited) return;
+    if (_senderId == null || _peerId == null || _exited) return;
     try {
       final result = await _database.listRows(
         databaseId: StudyVerseAppwrite.databaseId,
@@ -170,8 +208,10 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
       setState(() {
         _messages
           ..clear()
-          ..addAll(result.rows.reversed.map(
-            (row) => Map<String, dynamic>.from(row.data)));
+          ..addAll(result.rows.reversed
+              .map((row) => Map<String, dynamic>.from(row.data))
+              .where((row) => row['sender_id'] == _senderId ||
+                  row['sender_id'] == _peerId));
         _error = null;
       });
     } catch (_) {
@@ -187,7 +227,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
     String? fileId,
     int? durationSeconds,
   }) async {
-    if (_exited || _senderId == null) return;
+    if (_exited || _senderId == null || _peerId == null) return;
     await _database.createRow(
       databaseId: StudyVerseAppwrite.databaseId,
       tableId: StudyVerseAppwrite.tableId,
@@ -200,7 +240,8 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
         'duration_seconds': durationSeconds,
       },
       permissions: [
-        aw.Permission.read(aw.Role.team(StudyVerseAppwrite.teamId)),
+        aw.Permission.read(aw.Role.user(_senderId!)),
+        aw.Permission.read(aw.Role.user(_peerId!)),
       ],
     );
     if (!_exited) await _loadMessages();
@@ -230,14 +271,15 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
     if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
       throw const FormatException('Files must be less than 10 MB.');
     }
-    if (_exited || _senderId == null) return;
+    if (_exited || _senderId == null || _peerId == null) return;
     final file = await _storage.createFile(
       bucketId: StudyVerseAppwrite.bucketId,
       fileId: aw.ID.unique(),
       file: aw.InputFile.fromBytes(
         bytes: bytes, filename: name, contentType: contentType),
       permissions: [
-        aw.Permission.read(aw.Role.team(StudyVerseAppwrite.teamId)),
+        aw.Permission.read(aw.Role.user(_senderId!)),
+        aw.Permission.read(aw.Role.user(_peerId!)),
         aw.Permission.delete(aw.Role.user(_senderId!)),
       ],
     );
@@ -390,8 +432,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
     _subscription?.unsubscribe();
     unawaited(_realtime.disconnect());
     unawaited(_closeMedia());
-    _email.dispose();
-    _password.dispose();
+    _peerController.dispose();
     _text.dispose();
     super.dispose();
   }
@@ -405,28 +446,64 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
       main = const Center(child: CircularProgressIndicator());
     } else if (_senderId == null) {
       main = ListView(padding: const EdgeInsets.all(24), children: [
-        const SizedBox(height: 40),
-        const Icon(Icons.lock_rounded, size: 55,
-          color: Color(0xFFE85283)),
-        const SizedBox(height: 15),
-        const Center(child: Text('Private Pair Sign-in',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800))),
-        const SizedBox(height: 12),
-        const Text('Only two approved accounts can enter this space.',
+        const SizedBox(height: 50),
+        const Icon(Icons.favorite, size: 55, color: Color(0xFFE85283)),
+        const SizedBox(height: 18),
+        const Center(child: Text('अपनी चैट ID बनाएँ',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800))),
+        const SizedBox(height: 8),
+        const Text('एक बार ID बनेगी। ईमेल, पासवर्ड या QR की जरूरत नहीं।',
           textAlign: TextAlign.center),
         const SizedBox(height: 22),
-        TextField(controller: _email,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(labelText: 'Email')),
-        const SizedBox(height: 12),
-        TextField(controller: _password,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Account password')),
-        const SizedBox(height: 15),
-        FilledButton(onPressed: _sending ? null : _signIn,
-          child: const Text('Sign in')),
+        FilledButton(
+          onPressed: _sending ? null : _createMyChatId,
+          child: Text(_sending ? 'ID बन रही है…' : 'Create My Chat ID'),
+        ),
         if (_error != null) Padding(
           padding: const EdgeInsets.all(12),
+          child: Text(_error!, style: const TextStyle(color: Colors.red))),
+      ]);
+    } else if (_peerId == null) {
+      main = ListView(padding: const EdgeInsets.all(24), children: [
+        const SizedBox(height: 20),
+        const Text('मेरी चैट ID',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        const SizedBox(height: 8),
+        SelectableText(_senderId!,
+            style: const TextStyle(fontWeight: FontWeight.w700,
+                color: Color(0xFF9C375F), fontSize: 16)),
+        TextButton.icon(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: _senderId!));
+            _notice('तुम्हारी ID कॉपी हो गई');
+          },
+          icon: const Icon(Icons.copy),
+          label: const Text('Copy My ID'),
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _peerController,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: const InputDecoration(
+            labelText: 'सामने वाले की Chat ID',
+            hintText: 'Paste Chat ID'),
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: _savePeer,
+          icon: const Icon(Icons.chat_bubble_outline),
+          label: const Text('Start Chat'),
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'दूसरा व्यक्ति अपने फोन पर ऐप खोलकर अपनी ID बनाए और तुम्हें '
+          'वह ID बताए। फिर एक-दूसरे को सीधे मैसेज भेज सकते हो। '
+          'ID इस फोन के अनाम अकाउंट से जुड़ी है; ऐप हटाने या डेटा साफ़ '
+          'करने पर ID वापस नहीं मिल भी सकती है।',
+          style: TextStyle(fontSize: 12, color: Color(0xFF737087))),
+        if (_error != null) Padding(
+          padding: const EdgeInsets.only(top: 12),
           child: Text(_error!, style: const TextStyle(color: Colors.red))),
       ]);
     } else {
@@ -515,6 +592,12 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
           ),
           title: const Text('Private Space ♥'),
           actions: [
+            if (_senderId != null && _peerId != null)
+              IconButton(
+                tooltip: 'Change Chat ID',
+                icon: const Icon(Icons.person_search_outlined),
+                onPressed: _changeContact,
+              ),
             IconButton(
               tooltip: 'Return to studying',
               icon: const Icon(Icons.menu_book_outlined),
