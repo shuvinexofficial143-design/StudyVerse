@@ -480,17 +480,17 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
     if (importing) return;
     setState(() => importing = true);
     try {
-      final selected = await FilePicker.pickFiles(
+      final picked = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
-        allowMultiple: false,
-        withData: true,
       );
-      if (selected == null || selected.files.isEmpty) return;
-      final picked = selected.files.single;
-      final bytes = picked.bytes ??
-          (picked.path == null ? null : await File(picked.path!).readAsBytes());
-      if (bytes == null || bytes.length < 4 || bytes.length > 25 * 1024 * 1024) {
+      if (picked == null) return;
+      final reportedLength = picked.lengthSync();
+      if (reportedLength != null && reportedLength > 25 * 1024 * 1024) {
+        throw const FormatException('Choose a PDF smaller than 25 MB.');
+      }
+      final bytes = await picked.readAsBytes();
+      if (bytes.length < 4 || bytes.length > 25 * 1024 * 1024) {
         throw const FormatException('Choose a PDF smaller than 25 MB.');
       }
       if (bytes[0] != 37 || bytes[1] != 80 ||
