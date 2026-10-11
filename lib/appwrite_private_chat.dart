@@ -73,7 +73,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen> {
   static const _savedPeerKey = 'studyverse_appwrite_peer_v1';
   static const _savedPeerAliasKey = 'studyverse_appwrite_peer_alias_v2';
   static const _savedMyAliasKey = 'studyverse_appwrite_my_alias_v2';
-  static const _aliasPattern = r'^[a-z][a-z0-9_-]{2,29}
+  static const _aliasPattern = r'^[a-z][a-z0-9_-]{2,29}$';
   bool _loading = true;
   bool _sending = false;
   bool _recording = false;
