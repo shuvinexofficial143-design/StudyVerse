@@ -28,7 +28,7 @@ jobs:
       - name: Unit tests
         run: flutter test
       - name: Build Android APK (manual only)
-        if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'build: StudyVerse APK'
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'apk-now' }}
         env:
           STUDYVERSE_SUPABASE_URL: ${{ vars.STUDYVERSE_SUPABASE_URL }}
           STUDYVERSE_SUPABASE_ANON_KEY: ${{ secrets.STUDYVERSE_SUPABASE_ANON_KEY }}
@@ -47,7 +47,7 @@ jobs:
             --dart-define="APPWRITE_CHAT_TABLE_ID=${STUDYVERSE_APPWRITE_CHAT_TABLE_ID:-6acb27370006d588e3f4}" \
             --dart-define="APPWRITE_MEDIA_BUCKET_ID=${STUDYVERSE_APPWRITE_MEDIA_BUCKET_ID:-studyverse-private-media}"
       - name: Upload APK (manual only)
-        if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'build: StudyVerse APK'
+        if: ${{ github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'apk-now' }}
         uses: actions/upload-artifact@v4
         with:
           name: StudyVerse-Android-APK
