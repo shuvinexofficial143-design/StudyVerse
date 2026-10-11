@@ -4,6 +4,7 @@ import 'study_data.dart';
 import 'private_space.dart';
 import 'nios_curriculum.dart';
 import 'study_extras.dart';
+import 'ready_notes.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -365,6 +366,16 @@ class _StudyScreenState extends State<StudyScreen> {
           onTap: _viewLawChapters,
         ),
         const StudySection('Study tools'),
+        StudyFeatureTile(
+          title: '24 Ready-Made Revision Notes',
+          description: 'Law, Hindi, English, History and 11 more subjects • offline',
+          icon: Icons.auto_stories_outlined,
+          color: const Color(0xFF1768F7),
+          onTap: () => Navigator.push(context,
+            MaterialPageRoute<void>(
+              builder: (_) => const ReadyStudyNotesScreen())),
+        ),
+        const SizedBox(height: 9),
         StudyFeatureTile(
           title: 'Offline PDF Reader',
           description: 'Import and read your downloaded NIOS PDFs',
