@@ -510,19 +510,19 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
       final response = await request.close().timeout(
         const Duration(seconds: 25));
       if (response.statusCode != HttpStatus.ok) {
-        throw const FormatException('NIOS PDF अभी डाउनलोड नहीं हुई।');
+        throw const FormatException('Could not download the NIOS PDF.');
       }
       final builder = BytesBuilder(copy: false);
       await for (final chunk in response.timeout(const Duration(seconds: 45))) {
         if (builder.length + chunk.length > 25 * 1024 * 1024) {
-          throw const FormatException('यह PDF 25 MB से बड़ी है।');
+          throw const FormatException('This PDF is larger than 25 MB.');
         }
         builder.add(chunk);
       }
       final bytes = builder.takeBytes();
       if (bytes.length < 4 || bytes[0] != 37 || bytes[1] != 80 ||
           bytes[2] != 68 || bytes[3] != 70) {
-        throw const FormatException('NIOS से सही PDF नहीं मिली।');
+        throw const FormatException('The file received from NIOS is not a valid PDF.');
       }
       final dir = await getApplicationDocumentsDirectory();
       final folder = Directory('${dir.path}/studyverse_pdfs');
@@ -537,13 +537,13 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
       if (mounted) {
         setState(() => pdfs = next);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('PDF सेव हो गई। अब बिना इंटरनेट पढ़ सकते हैं।')));
+          content: Text('PDF saved. You can now read it offline.')));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text(
-            'डाउनलोड नहीं हुआ। इंटरनेट चेक करें या NIOS साइट से PDF खोलें।')));
+            'Download failed. Check your internet or open the NIOS website.')));
       }
     } finally {
       client.close(force: true);
@@ -559,7 +559,7 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('NIOS वेबसाइट नहीं खुली। इंटरनेट देखें।')));
+        content: Text('Could not open the NIOS website. Check your internet connection.')));
     }
   }
 
@@ -629,9 +629,9 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
       const SizedBox(height: 15),
       const StudySection('NIOS Official PDF Lessons'),
       const Text(
-        'ये असली NIOS साइट के PDF हैं। Download दबाने पर फोन में ऑफलाइन '
-        'सेव होंगे; पहली बार इंटरनेट चाहिए। सभी विषयों की किताबों के लिए '
-        'नीचे NIOS वेबसाइट खोलें।',
+        'These PDFs are provided by the official NIOS website. Tap Download to '
+        'save a lesson offline. Internet is required for the first download. '
+        'Find books for other subjects on the NIOS website below.',
         style: TextStyle(color: Color(0xFF66728B), fontSize: 12),
       ),
       const SizedBox(height: 10),
