@@ -12,6 +12,10 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   shared_preferences: ^2.5.3
   supabase_flutter: ^2.9.1
+  image_picker: ^1.2.4
+  record: ^7.1.1
+  just_audio: ^0.10.6
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
