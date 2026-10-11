@@ -284,7 +284,7 @@ class _StudyScreenState extends State<StudyScreen> {
 
   Future<void> _openOfficialMaterials() async {
     final url = Uri.parse(
-        'https://digital.nios.ac.in/topic.php?id=338en');
+        'https://rcpune.nios.ac.in/senior-secondary-courses-material.html');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       await Clipboard.setData(ClipboardData(text: url.toString()));
       if (mounted) {
@@ -396,8 +396,8 @@ class _StudyScreenState extends State<StudyScreen> {
         ),
         const SizedBox(height: 9),
         StudyFeatureTile(
-          title: 'Official NIOS Law lessons',
-          description: 'Open NIOS learning material in your browser',
+          title: 'Official NIOS Textbooks',
+          description: 'All Senior Secondary subject materials (NIOS website)',
           icon: Icons.open_in_browser,
           color: studyBlue,
           onTap: _openOfficialMaterials,
