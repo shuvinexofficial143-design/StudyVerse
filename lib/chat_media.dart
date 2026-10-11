@@ -22,11 +22,13 @@ class ChatMediaService {
   final AudioRecorder recorder = AudioRecorder();
   DateTime? recordingStartedAt;
   String? localRecordingPath;
+  bool _closed = false;
 
   Future<void> startVoiceRecording() async {
     if (!await recorder.hasPermission()) {
       throw const FormatException('Microphone permission is required.');
     }
+    if (_closed) return;
     final directory = await getTemporaryDirectory();
     final path = '${directory.path}/sv-${DateTime.now().microsecondsSinceEpoch}.m4a';
     await recorder.start(
@@ -58,7 +60,7 @@ class ChatMediaService {
 
   Future<bool> stopVoiceAndSend(String pairId) async {
     final startedAt = recordingStartedAt;
-    if (startedAt == null) return false;
+    if (startedAt == null || _closed) return false;
     String? path;
     try {
       path = await recorder.stop();
@@ -99,7 +101,7 @@ class ChatMediaService {
       imageQuality: 82,
       requestFullMetadata: false,
     );
-    if (picked == null) return false;
+    if (picked == null || _closed) return false;
     final lower = picked.name.toLowerCase();
     final extension = lower.endsWith('.png')
         ? 'png'
@@ -140,6 +142,9 @@ class ChatMediaService {
     Uint8List? data,
     int? durationSeconds,
   }) async {
+    if (_closed) {
+      throw const FormatException('Chat locked. Media was not sent.');
+    }
     final senderId = client.auth.currentUser?.id;
     if (senderId == null) {
       throw const FormatException('Please sign in to send media.');
@@ -158,6 +163,9 @@ class ChatMediaService {
       fileOptions: FileOptions(contentType: mimeType, upsert: false),
     );
     try {
+      if (_closed) {
+        throw const FormatException('Chat locked. Media was not sent.');
+      }
       await client.from('messages').insert({
         'pair_id': pairId,
         'sender_id': senderId,
@@ -180,5 +188,8 @@ class ChatMediaService {
   Future<String> signedMediaUrl(String path) =>
       client.storage.from(bucket).createSignedUrl(path, 120);
 
-  Future<void> dispose() => recorder.dispose();
+  Future<void> dispose() async {
+    _closed = true;
+    await recorder.dispose();
+  }
 }
