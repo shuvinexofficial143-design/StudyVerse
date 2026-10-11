@@ -735,6 +735,32 @@ class _ProgressScreenState extends State<ProgressScreen> {
           const Text('Tasks complete', style: TextStyle(fontSize: 12)),
         ]))),
       ]),
+      const StudySection('Recent NIOS quiz attempts'),
+      FutureBuilder<List<Map<String, dynamic>>>(
+        future: StudyStorage.loadQuizHistory(),
+        builder: (context, snapshot) {
+          final attempts = snapshot.data ?? [];
+          if (attempts.isEmpty) {
+            return const StudyPanel(
+              child: Text('Complete a quiz to see your study history here.'));
+          }
+          return StudyPanel(child: Column(
+            children: [
+              for (final attempt in attempts.take(6))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.assignment_turned_in_outlined,
+                    color: studyBlue),
+                  title: Text(attempt['subject'] as String? ?? 'NIOS quiz'),
+                  subtitle: Text((attempt['at'] as String? ?? '').split('T').first),
+                  trailing: Text(
+                    '${attempt['correct'] ?? 0} / ${attempt['total'] ?? 0}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+            ],
+          ));
+        },
+      ),
       const StudySection('Today\'s study goals'),
       StudyPanel(child: Column(children: [
         for (int i = 0; i < tasks.length; i++)
