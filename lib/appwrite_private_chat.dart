@@ -546,79 +546,79 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen> {
       main = const Center(child: Text('Private chat backend not configured.'));
     } else if (_loading) {
       main = const Center(child: CircularProgressIndicator());
-    } else if (_senderId == null) {
+    } else if (_myChatId == null) {
       main = ListView(padding: const EdgeInsets.all(24), children: [
-        const SizedBox(height: 50),
-        const Icon(Icons.favorite, size: 55, color: Color(0xFFE85283)),
-        const SizedBox(height: 18),
-        const Center(child: Text('अपनी चैट ID बनाएँ',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800))),
+        const SizedBox(height: 32),
+        const Center(child: Icon(Icons.favorite_rounded, size: 55,
+          color: Color(0xFFE85283))),
+        const SizedBox(height: 16),
+        const Center(child: Text('Create Your Chat ID',
+          style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800))),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _myIdController,
+          maxLength: 30,
+          autocorrect: false,
+          enableSuggestions: false,
+          textCapitalization: TextCapitalization.none,
+          decoration: const InputDecoration(
+            labelText: 'My Chat ID',
+            hintText: 'e.g. alex143',
+            prefixIcon: Icon(Icons.alternate_email),
+            helperText: '3–30 letters, numbers, _ or -',
+          ),
+        ),
         const SizedBox(height: 8),
-        const Text('एक बार ID बनेगी। ईमेल, पासवर्ड या QR की जरूरत नहीं।',
-          textAlign: TextAlign.center),
-        const SizedBox(height: 22),
         FilledButton(
           onPressed: _sending ? null : _createMyChatId,
-          child: Text(_sending ? 'ID बन रही है…' : 'Create My Chat ID'),
+          child: Text(_sending ? 'Creating…' : 'Create ID'),
         ),
         if (_error != null) Padding(
-          padding: const EdgeInsets.all(12),
-          child: SelectableText(_error!, style: const TextStyle(color: Colors.red))),
-        const SizedBox(height: 12),
-        const Text('Android Package Name (Appwrite Apps में register करें):',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12)),
-        Center(child: TextButton.icon(
-          onPressed: () {
-            Clipboard.setData(const ClipboardData(text: _androidPackage));
-            _notice('Android package copied');
-          },
-          icon: const Icon(Icons.copy),
-          label: const Text(_androidPackage),
-        )),
+          padding: const EdgeInsets.only(top: 18),
+          child: SelectableText(_error!, style: const TextStyle(
+              color: Color(0xFF8B3455), fontSize: 13)),
+        ),
       ]);
     } else if (_peerId == null) {
       main = ListView(padding: const EdgeInsets.all(24), children: [
-        const SizedBox(height: 20),
-        const Text('मेरी चैट ID',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-        const SizedBox(height: 8),
-        SelectableText(_senderId!,
-            style: const TextStyle(fontWeight: FontWeight.w700,
-                color: Color(0xFF9C375F), fontSize: 16)),
-        TextButton.icon(
-          onPressed: () {
-            Clipboard.setData(ClipboardData(text: _senderId!));
-            _notice('तुम्हारी ID कॉपी हो गई');
-          },
-          icon: const Icon(Icons.copy),
-          label: const Text('Copy My ID'),
-        ),
         const SizedBox(height: 24),
+        const Text('My Chat ID',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: SelectableText(_myChatId!,
+            style: const TextStyle(fontSize: 21,
+              color: Color(0xFF9C375F), fontWeight: FontWeight.w800))),
+          IconButton(
+            tooltip: 'Copy My ID',
+            icon: const Icon(Icons.copy_rounded),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: _myChatId!));
+              _notice('ID copied');
+            }),
+        ]),
+        const SizedBox(height: 32),
         TextField(
           controller: _peerController,
           autocorrect: false,
           enableSuggestions: false,
           decoration: const InputDecoration(
-            labelText: 'सामने वाले की Chat ID',
-            hintText: 'Paste Chat ID'),
+            labelText: "Other Person's Chat ID",
+            hintText: 'Enter Chat ID',
+            prefixIcon: Icon(Icons.person_outline),
+          ),
         ),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: _savePeer,
+          onPressed: _sending ? null : _savePeer,
           icon: const Icon(Icons.chat_bubble_outline),
-          label: const Text('Start Chat'),
+          label: Text(_sending ? 'Connecting…' : 'Start Chat'),
         ),
-        const SizedBox(height: 14),
-        const Text(
-          'दूसरा व्यक्ति अपने फोन पर ऐप खोलकर अपनी ID बनाए और तुम्हें '
-          'वह ID बताए। फिर एक-दूसरे को सीधे मैसेज भेज सकते हो। '
-          'ID इस फोन के अनाम अकाउंट से जुड़ी है; ऐप हटाने या डेटा साफ़ '
-          'करने पर ID वापस नहीं मिल भी सकती है।',
-          style: TextStyle(fontSize: 12, color: Color(0xFF737087))),
         if (_error != null) Padding(
           padding: const EdgeInsets.only(top: 12),
-          child: Text(_error!, style: const TextStyle(color: Colors.red))),
+          child: SelectableText(_error!, style: const TextStyle(
+              color: Color(0xFF8B3455), fontSize: 13)),
+        ),
       ]);
     } else {
       main = Column(children: [
@@ -704,7 +704,8 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: _quickExit,
           ),
-          title: const Text('Private Space ♥'),
+          title: Text(_peerChatId == null
+            ? 'Private Space ♥' : 'Chat · ${_peerChatId!}'),
           actions: [
             if (_senderId != null && _peerId != null)
               IconButton(
