@@ -3,7 +3,9 @@ import 'main.dart';
 import 'study_data.dart';
 import 'private_space.dart';
 import 'nios_curriculum.dart';
+import 'study_extras.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 final subjectNames = niosSubjects.map((subject) => subject.name).toList();
 
@@ -223,6 +225,76 @@ class _StudyScreenState extends State<StudyScreen> {
     body.dispose();
   }
 
+  Future<void> _editNote(StudyNote note) async {
+    final title = TextEditingController(text: note.title);
+    final body = TextEditingController(text: note.body);
+    var subject = note.subject;
+    final subjects = <String>{...subjectNames, note.subject}.toList();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) => AlertDialog(
+          title: const Text('Edit note'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: title, maxLength: 150,
+                decoration: const InputDecoration(labelText: 'Title')),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: subject,
+                isExpanded: true,
+                items: subjects.map((item) => DropdownMenuItem(
+                    value: item, child: Text(item,
+                      overflow: TextOverflow.ellipsis))).toList(),
+                onChanged: (value) {
+                  if (value != null) update(() => subject = value);
+                },
+                decoration: const InputDecoration(labelText: 'Subject'),
+              ),
+              const SizedBox(height: 10),
+              TextField(controller: body, maxLength: 10000,
+                minLines: 4, maxLines: 7,
+                decoration: const InputDecoration(
+                    labelText: 'Study note', alignLabelWithHint: true)),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+            FilledButton(onPressed: () {
+              if (title.text.trim().isNotEmpty && body.text.trim().isNotEmpty) {
+                Navigator.pop(context, true);
+              }
+            }, child: const Text('Save changes')),
+          ],
+        ),
+      ),
+    );
+    if (saved == true) {
+      final next = notes.map((item) => item.id == note.id
+          ? StudyNote(id: note.id, subject: subject,
+              title: title.text.trim(), body: body.text.trim())
+          : item).toList();
+      await StudyStorage.saveNotes(next);
+      if (mounted) setState(() => notes = next);
+    }
+    title.dispose();
+    body.dispose();
+  }
+
+  Future<void> _openOfficialMaterials() async {
+    final url = Uri.parse(
+        'https://digital.nios.ac.in/topic.php?id=338en');
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      await Clipboard.setData(ClipboardData(text: url.toString()));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'Could not open browser. The NIOS link was copied.')));
+      }
+    }
+  }
+
   Future<void> _showNote(StudyNote note) async {
     await showDialog<void>(
       context: context,
@@ -241,6 +313,10 @@ class _StudyScreenState extends State<StudyScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context),
             child: const Text('Close')),
+          TextButton(onPressed: () {
+            Navigator.pop(context);
+            _editNote(note);
+          }, child: const Text('Edit')),
           TextButton(onPressed: () async {
             final remaining = notes.where((item) => item.id != note.id).toList();
             await StudyStorage.saveNotes(remaining);
@@ -288,6 +364,44 @@ class _StudyScreenState extends State<StudyScreen> {
           icon: Icons.gavel, color: const Color(0xFFBD5684),
           onTap: _viewLawChapters,
         ),
+        const StudySection('Study tools'),
+        StudyFeatureTile(
+          title: 'Offline PDF Reader',
+          description: 'Import and read your downloaded NIOS PDFs',
+          icon: Icons.picture_as_pdf_outlined,
+          color: const Color(0xFFDE5263),
+          onTap: () => Navigator.push(context,
+            MaterialPageRoute<void>(
+              builder: (_) => const PdfLibraryScreen())),
+        ),
+        const SizedBox(height: 9),
+        StudyFeatureTile(
+          title: 'My Flashcards',
+          description: 'Create, flip and revise question-answer cards',
+          icon: Icons.style_outlined,
+          color: const Color(0xFF7459D7),
+          onTap: () => Navigator.push(context,
+            MaterialPageRoute<void>(
+              builder: (_) => const FlashcardsScreen())),
+        ),
+        const SizedBox(height: 9),
+        StudyFeatureTile(
+          title: 'Weekly Study Planner',
+          description: 'Set subjects, days and session times',
+          icon: Icons.event_note_outlined,
+          color: const Color(0xFF0A9F82),
+          onTap: () => Navigator.push(context,
+            MaterialPageRoute<void>(
+              builder: (_) => const StudyPlannerScreen())),
+        ),
+        const SizedBox(height: 9),
+        StudyFeatureTile(
+          title: 'Official NIOS Law lessons',
+          description: 'Open NIOS learning material in your browser',
+          icon: Icons.open_in_browser,
+          color: studyBlue,
+          onTap: _openOfficialMaterials,
+        ),
         const StudySection('Filter notes'),
         Wrap(spacing: 8, runSpacing: 7,
           children: ['All', ...registeredSubjects].map((subject) => ChoiceChip(
@@ -318,7 +432,7 @@ class _StudyScreenState extends State<StudyScreen> {
           Icon(Icons.offline_pin, color: Color(0xFF0CA678)),
           SizedBox(width: 10),
           Expanded(child: Text(
-            'Your notes are saved on this device. PDF import and cloud sync are planned.',
+            'Notes, PDFs, flashcards and study plans save on this device. Cloud sync is not enabled.',
             style: TextStyle(fontSize: 12))),
         ])),
         const SizedBox(height: 22),
