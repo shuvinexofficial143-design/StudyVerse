@@ -202,7 +202,12 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
   Future<void> _loadPair() async {
     if (!widget.onlineConfigured) return;
     if (client.auth.currentUser == null) {
-      if (mounted) setState(() => {pairId = null, waiting = false});
+      if (mounted) {
+        setState(() {
+          pairId = null;
+          waiting = false;
+        });
+      }
       return;
     }
     setState(() {waiting = true; failure = null;});
