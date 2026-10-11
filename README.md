@@ -7,8 +7,8 @@ A Flutter Android study app tailored to **NIOS Senior Secondary (Class 12)** lea
 ## Current features
 
 - Home: NIOS Class 12 overview and advocate career path
-- Study: choose actual NIOS subjects (stored per device); view 31 official chapter titles for the elective Introduction to Law (338), and add/view/delete notes
-- Quiz: sample **original practice questions**, selectable by subject (not NIOS past exam papers)
+- Study: select actual NIOS subjects, view official Law (338) chapter titles, add/edit/view/delete offline notes, open official NIOS subject materials, import offline PDF documents, create practice flashcards and schedule weekly revision sessions
+- Quiz: sample **original practice questions** by NIOS-related subject (not official past papers), immediate result, correct-answer explanations and local attempt history
 - Progress: saved quiz score and revision tasks
 - Android back: navigates to the previous quiz question/previous tab, with a confirmation before leaving Home
 - Settings: access to a protected Resource Vault
@@ -19,6 +19,8 @@ A Flutter Android study app tailored to **NIOS Senior Secondary (Class 12)** lea
 **Important: NIOS Class 12 subject choice must match the learner's actual registration.** The available list is not evidence of the subjects she enrolled in. Introduction to Law (338) is offered as a subject, but is **not automatically required** for an advocate career. See the official [NIOS subject list](https://rcpune.nios.ac.in/senior-secondary-courses-material.html) and [Introduction to Law e-content](https://digital.nios.ac.in/topic.php?id=338en).
 
 **Security limitations:** Leaving chat does not delete its server history. The current server-side messages are **not end-to-end encrypted**: the database operator can read plaintext. A local access code is not a substitute for server authentication or client-side message encryption. The passcode is set at first use and is *not* automatically preloaded from the code. This is a testing build, not a security-audited app.
+
+**Study file privacy:** imported PDFs, notes, flashcards and study schedules currently persist locally on that Android device; there is no cross-device study data sync or automatic cloud backup. PDFs must be obtained separately from official sources or user-supplied files. The small sample MCQ bank is not a complete NIOS course and must not be represented as one.
 
 **Build policy:** Pushing to main triggers `flutter analyze` and `flutter test` only. An APK is built **only** on a manually dispatched GitHub Actions run. Do not create an APK until requested.
 
@@ -71,10 +73,10 @@ The Supabase anon/publishable key is client-visible by design; RLS is what restr
 ## Roadmap
 
 - [x] NIOS Class 12 dashboard and subject picker
-- [x] Offline notes, NIOS practice quiz and tasks
+- [x] Offline notes with editing, NIOS practice quiz with explanations/history, flashcards, weekly planner and local PDF import
 - [x] Local alphanumeric access-code gate, safe Android Back and quick exit
 - [x] Supabase SQL schema and live chat client code
 - [ ] Confirm learner's enrolled NIOS subjects; connect a dedicated backend and test on two real Android devices
 - [ ] Review encryption, screen locking, PIN lockout persistence and backups
-- [ ] Add flashcards, PDF reader, chapter quizzes and study planning
+- [ ] Add larger official syllabus-aligned banks, complete subject chapter study notes, previous papers/TMA support and real-device usability tests
 - [ ] Verify app signing and installable release builds on physical devices
