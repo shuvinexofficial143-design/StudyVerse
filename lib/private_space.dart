@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'main.dart';
 import 'chat_media.dart';
 import 'chat_media_bubble.dart';
+import 'appwrite_private_chat.dart';
 
 const _secureStore = FlutterSecureStorage();
 const _pinKey = 'studyverse_private_vault_pin_v1';
@@ -93,10 +94,12 @@ class _VaultScreenState extends State<VaultScreen> {
     }
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-      builder: (_) => PrivateChatScreen(
-        onlineConfigured: widget.onlineConfigured,
-        onQuickExit: widget.onQuickExit,
-      ),
+      builder: (_) => StudyVerseAppwrite.configured
+          ? AppwritePrivateChatScreen(onQuickExit: widget.onQuickExit)
+          : PrivateChatScreen(
+              onlineConfigured: widget.onlineConfigured,
+              onQuickExit: widget.onQuickExit,
+            ),
     ));
   }
 
