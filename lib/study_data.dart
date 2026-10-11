@@ -31,6 +31,7 @@ class StudyStorage {
   static const _quizKey = 'studyverse_last_quiz_score';
   static const _tasksKey = 'studyverse_nios12_tasks_v2';
   static const _subjectsKey = 'studyverse_nios12_selected_subjects_v1';
+  static const _quizHistoryKey = 'studyverse_nios12_quiz_history_v1';
 
   static Future<List<StudyNote>> loadNotes() async {
     final prefs = await SharedPreferences.getInstance();
@@ -90,6 +91,37 @@ class StudyStorage {
   static Future<void> saveQuizScore(int score) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_quizKey, score);
+  }
+
+  static Future<List<Map<String, dynamic>>> loadQuizHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_quizHistoryKey);
+    if (raw == null) return [];
+    try {
+      return (jsonDecode(raw) as List<dynamic>)
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> saveQuizResult({
+    required String subject,
+    required int correct,
+    required int total,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final history = await loadQuizHistory();
+    history.insert(0, {
+      'subject': subject,
+      'correct': correct,
+      'total': total,
+      'at': DateTime.now().toIso8601String(),
+    });
+    await prefs.setString(
+      _quizHistoryKey, jsonEncode(history.take(50).toList()));
+    await prefs.setInt(_quizKey, correct);
   }
 
   static Future<Set<int>> completedTasks() async {
