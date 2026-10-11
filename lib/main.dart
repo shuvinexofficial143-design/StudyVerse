@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'study_screens.dart';
-import 'private_space.dart';
 
 const studyBlue = Color(0xFF1768F7);
 const studyInk = Color(0xFF14213F);
@@ -14,7 +13,7 @@ Future<void> main() async {
   const anonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
   final onlineConfigured = url.isNotEmpty && anonKey.isNotEmpty;
   if (onlineConfigured) {
-    await Supabase.initialize(url: url, anonKey: anonKey);
+    await Supabase.initialize(url: url, publishableKey: anonKey);
   }
   runApp(StudyVerseApp(onlineConfigured: onlineConfigured));
 }
