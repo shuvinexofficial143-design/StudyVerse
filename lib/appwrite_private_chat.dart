@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'private_screen_guard.dart';
 
 /// Separate backend from every Supabase project. Config must be supplied at
 /// build time; no admin key, password or private media URL belongs in source.
@@ -54,6 +55,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
   final _text = TextEditingController();
   final _recorder = AudioRecorder();
   final _picker = ImagePicker();
+  static const _androidPackage = 'com.studyverse.app.studyverse';
 
   late final aw.Client _client = StudyVerseAppwrite.createClient();
   late final aw.Account _account = aw.Account(_client);
@@ -79,6 +81,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
   @override
   void initState() {
     super.initState();
+    PrivateScreenGuard.enter();
     WidgetsBinding.instance.addObserver(this);
     _boot();
   }
@@ -106,7 +109,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
         setState(() {
           _loading = false;
           // A 401 indicates first install: show a Create Chat ID button.
-          _error = e.code == 401 ? null : 'Cannot load chat ID: ${e.message}';
+          _error = e.code == 401 ? null : _explainAppwriteError(e);
         });
       }
     } catch (_) {
@@ -120,13 +123,20 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
     if (_sending || _exited) return;
     setState(() { _sending = true; _error = null; });
     try {
-      await _account.createAnonymousSession();
+      // Recover an existing anonymous session instead of trying to create
+      // another one when the first attempt partly succeeded.
+      aw.Models.User<aw.Models.Preferences>? existing;
+      try {
+        existing = await _account.get();
+      } on aw.AppwriteException catch (e) {
+        if (e.code != 401) rethrow;
+      }
+      if (existing == null) await _account.createAnonymousSession();
       final user = await _account.get();
       await _restoreIdentity(user.$id);
     } on aw.AppwriteException catch (e) {
       if (mounted && !_exited) {
-        setState(() => _error =
-            e.message ?? 'Could not create Chat ID. Enable Anonymous Auth.');
+        setState(() => _error = _explainAppwriteError(e));
       }
     } catch (_) {
       if (mounted && !_exited) {
@@ -135,6 +145,24 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
     } finally {
       if (mounted && !_exited) setState(() => _sending = false);
     }
+  }
+
+  String _explainAppwriteError(aw.AppwriteException e) {
+    final message = (e.message ?? '').toLowerCase();
+    if (message.contains('origin') || message.contains('platform')) {
+      return 'Appwrite Invalid Origin: इस Android app को Appwrite '
+          'Project > Apps में register करना जरूरी है। '
+          'Platform: Android, Package: $_androidPackage. '
+          'Register करने के बाद यही बटन दोबारा दबाएँ।';
+    }
+    if (message.contains('anonymous') || message.contains('disabled')) {
+      return 'Appwrite Auth > Settings में Anonymous sign-in ON करें।';
+    }
+    if (e.code == 429) {
+      return 'बहुत बार कोशिश हुई है। कुछ समय बाद दोबारा प्रयास करें।';
+    }
+    return 'Chat ID नहीं बनी (HTTP ${e.code ?? 'unknown'}): '
+        '${e.message ?? 'इंटरनेट और Appwrite सेटिंग देखें।'}';
   }
 
   Future<void> _restoreIdentity(String userId) async {
@@ -441,6 +469,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
 
   @override
   void dispose() {
+    PrivateScreenGuard.leave();
     _exited = true;
     WidgetsBinding.instance.removeObserver(this);
     _events?.cancel();
@@ -476,7 +505,19 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
         ),
         if (_error != null) Padding(
           padding: const EdgeInsets.all(12),
-          child: Text(_error!, style: const TextStyle(color: Colors.red))),
+          child: SelectableText(_error!, style: const TextStyle(color: Colors.red))),
+        const SizedBox(height: 12),
+        const Text('Android Package Name (Appwrite Apps में register करें):',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12)),
+        Center(child: TextButton.icon(
+          onPressed: () {
+            Clipboard.setData(const ClipboardData(text: _androidPackage));
+            _notice('Android package copied');
+          },
+          icon: const Icon(Icons.copy),
+          label: const Text(_androidPackage),
+        )),
       ]);
     } else if (_peerId == null) {
       main = ListView(padding: const EdgeInsets.all(24), children: [
