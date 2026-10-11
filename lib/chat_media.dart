@@ -151,7 +151,7 @@ class ChatMediaService {
     if (bytes.isEmpty || bytes.length > maxBytes) {
       throw const FormatException('Media must be under 10 MB.');
     }
-    final objectPath = '${pairId}/${senderId}/${DateTime.now().microsecondsSinceEpoch}.${extension}';
+    final objectPath = '$pairId/$senderId/${DateTime.now().microsecondsSinceEpoch}.$extension';
     await client.storage.from(bucket).uploadBinary(
       objectPath,
       bytes,
