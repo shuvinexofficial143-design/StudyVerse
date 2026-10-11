@@ -64,6 +64,8 @@ void main() {
     final answers = find.byType(ListTile);
     await tester.tap(answers.first);
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Next Question'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Next Question'));
     await tester.pumpAndSettle();
     expect(find.text('Question 2 of 10'), findsOneWidget);
