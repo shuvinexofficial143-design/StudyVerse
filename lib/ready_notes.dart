@@ -87,7 +87,7 @@ class _ReadyStudyNotesScreenState extends State<ReadyStudyNotesScreen> {
                     fontSize: 16, height: 1.55)),
                   const SizedBox(height: 25),
                   const Text('Source: Original NIOS-aligned revision summary. '
-                    'इसे पूरी किताब या आधिकारिक प्रश्नपत्र न समझें।',
+                    'It is not a complete textbook or an official examination paper.',
                     style: TextStyle(fontSize: 12, color: Colors.grey)),
                 ]),
               ),
