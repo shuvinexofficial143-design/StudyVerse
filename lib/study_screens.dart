@@ -453,6 +453,7 @@ class QuizScreenState extends State<QuizScreen> {
   int index = 0;
   int score = 0;
   int? selectedAnswer;
+  List<int?> answers = [];
   String quizSubject = 'Mixed NIOS';
 
   List<QuizItem> get currentQuestions {
@@ -486,7 +487,7 @@ class QuizScreenState extends State<QuizScreen> {
     if (index > 0) {
       setState(() {
         index--;
-        selectedAnswer = null;
+        selectedAnswer = answers[index];
       });
       return true;
     }
@@ -500,18 +501,33 @@ class QuizScreenState extends State<QuizScreen> {
     index = 0;
     score = 0;
     selectedAnswer = null;
+    answers = List<int?>.filled(currentQuestions.length, null);
   });
 
   Future<void> _next() async {
     if (selectedAnswer == null) return;
-    if (selectedAnswer == currentQuestions[index].answer) score++;
+    answers[index] = selectedAnswer;
     if (index == currentQuestions.length - 1) {
-      await StudyStorage.saveQuizScore(score);
-      if (mounted) setState(() => finished = true);
+      final questions = currentQuestions;
+      final totalCorrect = [
+        for (var i = 0; i < questions.length; i++)
+          if (answers[i] == questions[i].answer) i,
+      ].length;
+      await StudyStorage.saveQuizResult(
+        subject: quizSubject,
+        correct: totalCorrect,
+        total: questions.length,
+      );
+      if (mounted) {
+        setState(() {
+          score = totalCorrect;
+          finished = true;
+        });
+      }
     } else {
       setState(() {
         index++;
-        selectedAnswer = null;
+        selectedAnswer = answers[index];
       });
     }
   }
@@ -570,9 +586,46 @@ class QuizScreenState extends State<QuizScreen> {
         Center(child: Icon(score >= (currentQuestions.length * .7) ? Icons.workspace_premium :
           Icons.auto_stories, color: studyBlue, size: 75)),
         const SizedBox(height: 12),
-        Center(child: Text('$score / ${quizItems.length}',
+        Center(child: Text('$score / ${currentQuestions.length}',
           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 42))),
         const Center(child: Text('Quiz completed!')),
+        const SizedBox(height: 18),
+        const StudySection('Review your answers'),
+        for (var questionIndex = 0;
+            questionIndex < currentQuestions.length;
+            questionIndex++) ...[
+          StudyPanel(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(
+                  answers[questionIndex] ==
+                      currentQuestions[questionIndex].answer
+                      ? Icons.check_circle : Icons.cancel,
+                  color: answers[questionIndex] ==
+                      currentQuestions[questionIndex].answer
+                      ? const Color(0xFF159E74) : Colors.redAccent,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(currentQuestions[questionIndex].question,
+                  style: const TextStyle(fontWeight: FontWeight.w700))),
+              ]),
+              const SizedBox(height: 8),
+              Text('Your answer: ' +
+                (answers[questionIndex] == null ? 'Not answered'
+                : currentQuestions[questionIndex].options[
+                    answers[questionIndex]!])),
+              const SizedBox(height: 5),
+              Text('Correct answer: ' +
+                currentQuestions[questionIndex].options[
+                    currentQuestions[questionIndex].answer],
+                style: const TextStyle(color: Color(0xFF12966F))),
+              const SizedBox(height: 5),
+              Text(currentQuestions[questionIndex].explanation),
+            ],
+          )),
+          const SizedBox(height: 9),
+        ],
         const SizedBox(height: 20),
         FilledButton(onPressed: _start, child: const Text('Try again')),
         TextButton(onPressed: () => setState(() {
@@ -580,14 +633,14 @@ class QuizScreenState extends State<QuizScreen> {
         }), child: const Text('Back to Quiz Zone')),
       ] else ...[
         Row(children: [
-          Expanded(child: Text('Question ${index + 1} of ${quizItems.length}',
+          Expanded(child: Text('Question ${index + 1} of ${currentQuestions.length}',
             style: const TextStyle(fontWeight: FontWeight.w700))),
-          Text('${((index + 1) / quizItems.length * 100).round()}%',
+          Text('${((index + 1) / currentQuestions.length * 100).round()}%',
             style: const TextStyle(color: studyBlue)),
         ]),
         const SizedBox(height: 12),
         LinearProgressIndicator(
-          value: (index + 1) / quizItems.length,
+          value: (index + 1) / currentQuestions.length,
           minHeight: 8, borderRadius: BorderRadius.circular(20)),
         const SizedBox(height: 22),
         StudyPanel(child: Column(
@@ -615,7 +668,7 @@ class QuizScreenState extends State<QuizScreen> {
             ],
             SizedBox(width: double.infinity,
               child: FilledButton(onPressed: selectedAnswer == null ? null : _next,
-                child: Text(index == quizItems.length - 1
+                child: Text(index == currentQuestions.length - 1
                     ? 'Finish Quiz' : 'Next Question'))),
           ],
         )),
