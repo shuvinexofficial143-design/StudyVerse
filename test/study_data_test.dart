@@ -56,5 +56,18 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await StudyStorage.saveQuizScore(8);
     expect(await StudyStorage.lastQuizScore(), 8);
+  });  test('NIOS quiz results save as attempts', () async {
+    SharedPreferences.setMockInitialValues({});
+    await StudyStorage.saveQuizResult(
+        subject: 'Introduction to Law', correct: 4, total: 5);
+    await StudyStorage.saveQuizResult(
+        subject: 'History', correct: 2, total: 3);
+    final history = await StudyStorage.loadQuizHistory();
+    expect(history, hasLength(2));
+    expect(history.first['subject'], 'History');
+    expect(history.first['total'], 3);
+    expect(await StudyStorage.lastQuizScore(), 2);
   });
+
+
 }
