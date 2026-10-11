@@ -172,7 +172,7 @@ class StudyPanel extends StatelessWidget {
                 blurRadius: 16, offset: Offset(0, 5)),
           ],
         ),
-        child: child,
+        child: Material(type: MaterialType.transparency, child: child),
       );
 }
 
