@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:appwrite/appwrite.dart' as aw;
 import 'package:flutter/material.dart';
