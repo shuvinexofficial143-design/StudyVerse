@@ -12,6 +12,7 @@ dependencies:
   flutter_secure_storage: ^9.2.4
   shared_preferences: ^2.5.3
   supabase_flutter: ^2.9.1
+  appwrite: 27.0.0
   image_picker: ^1.2.4
   record: ^7.1.1
   just_audio: ^0.10.6
