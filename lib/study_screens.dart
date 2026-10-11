@@ -264,10 +264,14 @@ class _QuizScreenState extends State<QuizScreen> {
               style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
             const SizedBox(height: 18),
             for (var answer = 0; answer < 4; answer++) ...[
-              RadioListTile<int>(
-                value: answer,
-                groupValue: selectedAnswer,
-                onChanged: (value) => setState(() => selectedAnswer = value),
+              ListTile(
+                onTap: () => setState(() => selectedAnswer = answer),
+                leading: Icon(
+                  selectedAnswer == answer
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  color: studyBlue,
+                ),
                 title: Text(quizItems[index].options[answer]),
                 tileColor: selectedAnswer == answer
                     ? const Color(0xFFEAF2FF) : const Color(0xFFF8FAFF),
