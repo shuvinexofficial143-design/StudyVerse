@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'main.dart';
 import 'nios_curriculum.dart';
@@ -455,6 +457,23 @@ class _StudyPlannerScreenState extends State<StudyPlannerScreen> {
   }
 }
 
+/// Official NIOS-hosted chapter PDFs are downloaded only when selected.
+/// We do not redistribute textbook files in the application package.
+const _niosPdfChapters = <(String, String)>[
+  ('Law 338 — Lesson 1: Meaning of Law',
+   'https://digital.nios.ac.in/content/338en/338_Introduction_To_Law_Eng_L1.pdf'),
+  ('Law 338 — Lesson 2: Classification of Legal System',
+   'https://digital.nios.ac.in/content/338en/338_Introduction_To_Law_Eng_L2.pdf'),
+  ('Law 338 — Lesson 5: Law and Social Control',
+   'https://digital.nios.ac.in/content/338en/338_Introduction_To_Law_Eng_L5.pdf'),
+  ('Law 338 — Lesson 6: Natural Justice',
+   'https://digital.nios.ac.in/content/338en/338_Introduction_To_Law_Eng_L6.pdf'),
+  ('Law 338 — Lesson 13: Indian Judicial System',
+   'https://digital.nios.ac.in/content/338en/338_Introduction_To_Law_Eng_L13.pdf'),
+  ('Law 338 — Lesson 18: Constitutionalism and Preamble',
+   'https://digital.nios.ac.in/content/338en/338_Introduction_To_Law_Eng_L18.pdf'),
+];
+
 class PdfLibraryScreen extends StatefulWidget {
   const PdfLibraryScreen({super.key});
   @override
@@ -464,6 +483,7 @@ class PdfLibraryScreen extends StatefulWidget {
 class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
   List<SavedPdf> pdfs = [];
   bool importing = false;
+  String? downloadingPdf;
 
   @override
   void initState() {
@@ -474,6 +494,69 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
   Future<void> _load() async {
     final loaded = await StudyExtrasStorage.loadPdfs();
     if (mounted) setState(() => pdfs = loaded);
+  }
+
+  Future<void> _downloadOfficialPdf(String title, String link) async {
+    if (importing || downloadingPdf != null) return;
+    final uri = Uri.parse(link);
+    if (uri.scheme != 'https' || uri.host != 'digital.nios.ac.in') {
+      return;
+    }
+    setState(() => downloadingPdf = link);
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    try {
+      final request = await client.getUrl(uri).timeout(
+        const Duration(seconds: 20));
+      final response = await request.close().timeout(
+        const Duration(seconds: 25));
+      if (response.statusCode != HttpStatus.ok) {
+        throw const FormatException('NIOS PDF अभी डाउनलोड नहीं हुई।');
+      }
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response.timeout(const Duration(seconds: 45))) {
+        if (builder.length + chunk.length > 25 * 1024 * 1024) {
+          throw const FormatException('यह PDF 25 MB से बड़ी है।');
+        }
+        builder.add(chunk);
+      }
+      final bytes = builder.takeBytes();
+      if (bytes.length < 4 || bytes[0] != 37 || bytes[1] != 80 ||
+          bytes[2] != 68 || bytes[3] != 70) {
+        throw const FormatException('NIOS से सही PDF नहीं मिली।');
+      }
+      final dir = await getApplicationDocumentsDirectory();
+      final folder = Directory('${dir.path}/studyverse_pdfs');
+      await folder.create(recursive: true);
+      final id = DateTime.now().microsecondsSinceEpoch.toString();
+      final output = File('${folder.path}/$id.pdf');
+      await output.writeAsBytes(bytes, flush: true);
+      final next = [
+        SavedPdf(id: id, name: title, path: output.path), ...pdfs,
+      ];
+      await StudyExtrasStorage.savePdfs(next);
+      if (mounted) {
+        setState(() => pdfs = next);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('PDF सेव हो गई। अब बिना इंटरनेट पढ़ सकते हैं।')));
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(
+          'डाउनलोड नहीं हुआ। इंटरनेट चेक करें या NIOS साइट से PDF खोलें।')));
+    } finally {
+      client.close(force: true);
+      if (mounted) setState(() => downloadingPdf = null);
+    }
+  }
+
+  Future<void> _browseAllNiosMaterials() async {
+    final uri = Uri.parse(
+      'https://rcpune.nios.ac.in/senior-secondary-courses-material.html');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('NIOS वेबसाइट नहीं खुली। इंटरनेट देखें।')));
+    }
   }
 
   Future<void> _importPdf() async {
@@ -539,7 +622,41 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
         'Import downloaded NIOS textbooks or your own PDF files. '
         'They stay on this device and work without internet. '
         'Only add documents you are permitted to use.')),
-      const SizedBox(height: 12),
+      const SizedBox(height: 15),
+      const StudySection('NIOS Official PDF Lessons'),
+      const Text(
+        'ये असली NIOS साइट के PDF हैं। Download दबाने पर फोन में ऑफलाइन '
+        'सेव होंगे; पहली बार इंटरनेट चाहिए। सभी विषयों की किताबों के लिए '
+        'नीचे NIOS वेबसाइट खोलें।',
+        style: TextStyle(color: Color(0xFF66728B), fontSize: 12),
+      ),
+      const SizedBox(height: 10),
+      for (final (title, url) in _niosPdfChapters)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: StudyPanel(padding: const EdgeInsets.all(8),
+            child: ListTile(
+              leading: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+              title: Text(title, style: const TextStyle(fontSize: 13)),
+              trailing: IconButton(
+                tooltip: 'Download official PDF',
+                icon: downloadingPdf == url
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.download),
+                onPressed: downloadingPdf == null && !importing
+                    ? () => _downloadOfficialPdf(title, url) : null,
+              ),
+            ),
+          ),
+        ),
+      OutlinedButton.icon(
+        onPressed: _browseAllNiosMaterials,
+        icon: const Icon(Icons.public),
+        label: const Text('All Subject PDFs — Official NIOS Website'),
+      ),
+      const SizedBox(height: 18),
+      const StudySection('Saved Offline PDFs'),
       if (pdfs.isEmpty) const StudyPanel(
         child: Padding(padding: EdgeInsets.all(20),
           child: Text('Your PDF library is empty. Tap Import PDF to begin.')),
