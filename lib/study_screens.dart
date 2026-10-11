@@ -343,8 +343,18 @@ class QuizScreenState extends State<QuizScreen> {
 
   List<QuizItem> get currentQuestions {
     if (quizSubject == 'Mixed NIOS') {
-      // Original sample questions from several NIOS-related subjects.
-      return quizItems.take(10).toList();
+      // Ten varied questions: two per subject, not an official exam paper.
+      const subjects = <String>[
+        'Introduction to Law',
+        'Political Science',
+        'History',
+        'English',
+        'Hindi',
+      ];
+      return [
+        for (final subject in subjects)
+          ...quizItems.where((question) => question.subject == subject).take(2),
+      ];
     }
     return quizItems.where((question) =>
       question.subject == quizSubject).toList();
@@ -443,7 +453,7 @@ class QuizScreenState extends State<QuizScreen> {
         )),
       ] else if (finished) ...[
         const SizedBox(height: 25),
-        Center(child: Icon(score >= 7 ? Icons.workspace_premium :
+        Center(child: Icon(score >= (currentQuestions.length * .7) ? Icons.workspace_premium :
           Icons.auto_stories, color: studyBlue, size: 75)),
         const SizedBox(height: 12),
         Center(child: Text('$score / ${quizItems.length}',
