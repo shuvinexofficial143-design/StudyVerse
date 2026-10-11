@@ -175,8 +175,7 @@ class PrivateChatScreen extends StatefulWidget {
   State<PrivateChatScreen> createState() => _PrivateChatScreenState();
 }
 
-class _PrivateChatScreenState extends State<PrivateChatScreen>
-    with WidgetsBindingObserver {
+class _PrivateChatScreenState extends State<PrivateChatScreen> {
   final input = TextEditingController();
   final email = TextEditingController();
   final password = TextEditingController();
@@ -198,22 +197,9 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     if (widget.onlineConfigured) {
       media = ChatMediaService(client);
       _loadPair();
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Android image picker and microphone permission dialogs temporarily
-    // background the Flutter activity. Do not cancel an active OS dialog.
-    if (!externalPickerOpen &&
-        (state == AppLifecycleState.inactive ||
-         state == AppLifecycleState.paused ||
-         state == AppLifecycleState.hidden)) {
-      _quickExit();
     }
   }
 
@@ -375,7 +361,6 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     unawaited(_disposeMedia());
     input.dispose();
     email.dispose();
