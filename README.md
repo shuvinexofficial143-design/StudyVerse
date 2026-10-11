@@ -2,20 +2,25 @@
 
 [![Android APK](https://github.com/shuvinexofficial143-design/StudyVerse/actions/workflows/android.yml/badge.svg)](https://github.com/shuvinexofficial143-design/StudyVerse/actions/workflows/android.yml)
 
-A Flutter Android study app with an offline dashboard, subject-based notes, a ten-question quiz, local progress and a PIN-gated private messaging area.
+A Flutter Android study app tailored to **NIOS Senior Secondary (Class 12)** learners, with editable registered subjects, subject notes, original law/humanities/language practice questions, local study progress, an advocate career guide and a protected private messaging area.
 
 ## Current features
 
-- Home: subject cards, quick access to notes and quizzes
-- Study: locally persisted notes, add/view/delete, subject filters
-- Quiz: ten answerable questions and result
-- Progress: saved score and daily tasks
-- Settings: access to the private Resource Vault
-- Vault: separate six-digit device PIN, automatic exit on app background
-- Chat: two-person, Supabase-backed real-time messaging **after** dedicated backend configuration
-- Privacy defaults: no notification permission or push notifications, chat content not shown on normal study pages, Android screenshot/app-preview blocking via FLAG_SECURE
+- Home: NIOS Class 12 overview and advocate career path
+- Study: choose actual NIOS subjects (stored per device); view 31 official chapter titles for the elective Introduction to Law (338), and add/view/delete notes
+- Quiz: sample **original practice questions**, selectable by subject (not NIOS past exam papers)
+- Progress: saved quiz score and revision tasks
+- Android back: navigates to the previous quiz question/previous tab, with a confirmation before leaving Home
+- Settings: access to a protected Resource Vault
+- Vault: accepts an alphanumeric **6–32 character access code**. Set your own access code (e.g., your chosen private phrase) the first time you open the vault. It is stored using Android secure storage, not hardcoded in this public repository.
+- Chat: soft pink heart-themed background, automatic lock on backgrounding and quick return to study; encrypted-at-rest local access code; two-user Supabase real-time messages **after** a dedicated backend is configured
+- Privacy defaults: no push chat notifications, and Android screenshot / app-preview protection
 
-**Important:** Hiding a chat when leaving the page does not delete messages from the backend. When unlocked again, authorised users can retrieve history. The current server-side chat is **NOT end-to-end encrypted**: Supabase database administrators could access plaintext. The PIN is local access protection, **not** a substitute for encryption and strong authentication. No app can guarantee that a person looking at an unlocked phone will not see it.
+**Important: NIOS Class 12 subject choice must match the learner's actual registration.** The available list is not evidence of the subjects she enrolled in. Introduction to Law (338) is offered as a subject, but is **not automatically required** for an advocate career. See the official [NIOS subject list](https://rcpune.nios.ac.in/senior-secondary-courses-material.html) and [Introduction to Law e-content](https://digital.nios.ac.in/topic.php?id=338en).
+
+**Security limitations:** Leaving chat does not delete its server history. The current server-side messages are **not end-to-end encrypted**: the database operator can read plaintext. A local access code is not a substitute for server authentication or client-side message encryption. The passcode is set at first use and is *not* automatically preloaded from the code. This is a testing build, not a security-audited app.
+
+**Build policy:** Pushing to main triggers `flutter analyze` and `flutter test` only. An APK is built **only** on a manually dispatched GitHub Actions run. Do not create an APK until requested.
 
 ## Build locally
 
@@ -37,7 +42,7 @@ flutter build apk --release
 
 Output: `build/app/outputs/flutter-apk/app-release.apk`.
 
-GitHub Actions **Android APK** also builds the APK on every push to main. Open **Actions → Android APK → latest successful run → Artifacts** and download StudyVerse-Android-APK. Do not install until the build succeeded and the APK was tested. The default workflow runs **without** backend credentials: offline study features work, private chat displays a setup notice.
+GitHub Actions **StudyVerse Validation (Manual APK)** validates every push, but makes an APK only when manually dispatched. Open **Actions → Android APK → latest successful run → Artifacts** and download StudyVerse-Android-APK. Do not install until the build succeeded and the APK was tested. The default workflow runs **without** backend credentials: offline study features work, private chat displays a setup notice.
 
 ## Dedicated Supabase database for two users
 
@@ -65,11 +70,11 @@ The Supabase anon/publishable key is client-visible by design; RLS is what restr
 
 ## Roadmap
 
-- [x] Initial Flutter UI pages
-- [x] Offline notes, quiz and tasks
-- [x] Local PIN gate and quick-exit navigation
+- [x] NIOS Class 12 dashboard and subject picker
+- [x] Offline notes, NIOS practice quiz and tasks
+- [x] Local alphanumeric access-code gate, safe Android Back and quick exit
 - [x] Supabase SQL schema and live chat client code
-- [ ] Connect a dedicated backend and test on two real Android devices
+- [ ] Confirm learner's enrolled NIOS subjects; connect a dedicated backend and test on two real Android devices
 - [ ] Review encryption, screen locking, PIN lockout persistence and backups
 - [ ] Add flashcards, PDF reader, chapter quizzes and study planning
 - [ ] Verify app signing and installable release builds on physical devices
