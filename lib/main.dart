@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'study_screens.dart';
+import 'study_data.dart';
+import 'nios_curriculum.dart';
 
 const studyBlue = Color(0xFF1768F7);
 const studyInk = Color(0xFF14213F);
@@ -72,9 +75,55 @@ class StudyShell extends StatefulWidget {
 
 class _StudyShellState extends State<StudyShell> {
   int currentTab = 0;
+  final List<int> _tabHistory = <int>[0];
+  final GlobalKey<QuizScreenState> _quizKey = GlobalKey<QuizScreenState>();
 
   void selectTab(int index) {
-    if (mounted) setState(() => currentTab = index);
+    if (!mounted || index == currentTab) return;
+    setState(() {
+      currentTab = index;
+      _tabHistory.remove(index);
+      _tabHistory.add(index);
+    });
+  }
+
+  Future<void> _handleSystemBack() async {
+    // The Android system back button must navigate, not silently close the app.
+    if (currentTab == 2 && (_quizKey.currentState?.handleBack() ?? false)) {
+      return;
+    }
+    if (_tabHistory.length > 1) {
+      setState(() {
+        _tabHistory.removeLast();
+        currentTab = _tabHistory.last;
+      });
+      return;
+    }
+    if (currentTab != 0) {
+      selectTab(0);
+      return;
+    }
+    if (!mounted) return;
+    final exitConfirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit StudyVerse?'),
+        content: const Text('Stay here, or close the study app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep studying'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Exit app'),
+          ),
+        ],
+      ),
+    );
+    if (exitConfirmed == true) {
+      await SystemNavigator.pop();
+    }
   }
 
   @override
@@ -82,29 +131,50 @@ class _StudyShellState extends State<StudyShell> {
     final pages = [
       HomeScreen(onSelect: selectTab),
       const StudyScreen(),
-      const QuizScreen(),
+      QuizScreen(key: _quizKey),
       const ProgressScreen(),
       SettingsScreen(
         onlineConfigured: widget.onlineConfigured,
         quickExit: () => selectTab(1),
       ),
     ];
-    return Scaffold(
-      body: SafeArea(
-        child: IndexedStack(index: currentTab, children: pages),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: currentTab,
-        onDestinationSelected: selectTab,
-        backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFFE1EDFF),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Study'),
-          NavigationDestination(icon: Icon(Icons.bolt_outlined), selectedIcon: Icon(Icons.bolt), label: 'Quiz'),
-          NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'Progress'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings), label: 'Settings'),
-        ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _handleSystemBack();
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: IndexedStack(index: currentTab, children: pages),
+        ),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: currentTab,
+          onDestinationSelected: selectTab,
+          backgroundColor: Colors.white,
+          indicatorColor: const Color(0xFFE1EDFF),
+          destinations: const [
+            NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home'),
+            NavigationDestination(
+                icon: Icon(Icons.menu_book_outlined),
+                selectedIcon: Icon(Icons.menu_book),
+                label: 'Study'),
+            NavigationDestination(
+                icon: Icon(Icons.bolt_outlined),
+                selectedIcon: Icon(Icons.bolt),
+                label: 'Quiz'),
+            NavigationDestination(
+                icon: Icon(Icons.bar_chart_outlined),
+                selectedIcon: Icon(Icons.bar_chart),
+                label: 'Progress'),
+            NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: 'Settings'),
+          ],
+        ),
       ),
     );
   }
@@ -244,96 +314,125 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
         children: [
           const StudyHeader(
-              title: 'StudyVerse',
-              subtitle: 'Learn  •  Practice  •  Grow  •  Do Better'),
+            title: 'StudyVerse',
+            subtitle: 'NIOS Senior Secondary  •  Class 12',
+          ),
           Padding(
             padding: const EdgeInsets.all(18),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const StudySection('Your learning space'),
-                StudyPanel(
-                  child: Row(children: [
-                    const Icon(Icons.waving_hand, color: Color(0xFFFFB02B)),
-                    const SizedBox(width: 10),
-                    const Expanded(child: Column(
+                StudyPanel(child: Row(children: [
+                  const Icon(Icons.school_rounded,
+                      color: studyBlue, size: 36),
+                  const SizedBox(width: 14),
+                  const Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Your NIOS Class 12 Hub',
+                          style: TextStyle(fontWeight: FontWeight.w800,
+                              fontSize: 17)),
+                      SizedBox(height: 4),
+                      Text('Study notes, subject practice and daily goals.',
+                          style: TextStyle(
+                            color: Color(0xFF6B7C99), fontSize: 12)),
+                    ],
+                  )),
+                ])),
+                const StudySection('Your registered subjects'),
+                FutureBuilder<List<String>>(
+                  future: StudyStorage.loadSelectedSubjects(),
+                  builder: (context, snapshot) {
+                    final subjects = snapshot.data ?? <String>[];
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('A little progress every day',
-                          style: TextStyle(fontWeight: FontWeight.w800)),
-                        SizedBox(height: 3),
-                        Text('Start with notes or take a quick quiz.',
-                          style: TextStyle(color: Color(0xFF70809D), fontSize: 12)),
+                        if (subjects.isEmpty)
+                          const StudyPanel(child: Text(
+                            'Choose the subjects on your actual NIOS '
+                            'enrolment record. Nothing is assumed here.')),
+                        if (subjects.isNotEmpty)
+                          Wrap(spacing: 7, runSpacing: 7,
+                            children: subjects.map((subject) =>
+                              Chip(label: Text(subject),
+                                avatar: const Icon(Icons.check_circle,
+                                    color: studyBlue, size: 18)))
+                              .toList()),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: () => onSelect(1),
+                          icon: const Icon(Icons.tune),
+                          label: const Text('Choose or edit subjects'),
+                        ),
                       ],
-                    )),
-                    IconButton(onPressed: () => onSelect(2),
-                      icon: const Icon(Icons.arrow_forward, color: studyBlue)),
-                  ]),
+                    );
+                  },
                 ),
-                const StudySection('My subjects'),
-                Row(children: [
-                  Expanded(child: _SubjectCard('Mathematics',
-                      Icons.calculate_outlined, const Color(0xFF1768F7),
-                      () => onSelect(1))),
-                  const SizedBox(width: 9),
-                  Expanded(child: _SubjectCard('Science',
-                      Icons.science_outlined, const Color(0xFFF34678),
-                      () => onSelect(1))),
-                ]),
-                const SizedBox(height: 9),
-                Row(children: [
-                  Expanded(child: _SubjectCard('English',
-                      Icons.menu_book_outlined, const Color(0xFF0DA982),
-                      () => onSelect(1))),
-                  const SizedBox(width: 9),
-                  Expanded(child: _SubjectCard('General Knowledge',
-                      Icons.public, const Color(0xFFEF9418),
-                      () => onSelect(1))),
-                ]),
-                const StudySection('Quick access'),
-                StudyFeatureTile(title: 'Quick Quiz', description: '10 practice questions',
-                    icon: Icons.fact_check_outlined, color: const Color(0xFF7257D7),
-                    onTap: () => onSelect(2)),
+                const StudySection('Start studying'),
+                StudyFeatureTile(
+                  title: 'Subject Notes & Chapters',
+                  description: 'NIOS 12 notes and Law 338 chapters',
+                  icon: Icons.menu_book_outlined,
+                  color: studyBlue, onTap: () => onSelect(1)),
                 const SizedBox(height: 10),
-                StudyFeatureTile(title: 'My Notes', description: 'Save and revise chapters',
-                    icon: Icons.sticky_note_2_outlined, color: const Color(0xFFEF9418),
-                    onTap: () => onSelect(1)),
+                StudyFeatureTile(
+                  title: 'NIOS Practice Quiz',
+                  description: 'Law, civics, history and language questions',
+                  icon: Icons.fact_check_outlined,
+                  color: const Color(0xFF7958C8),
+                  onTap: () => onSelect(2)),
                 const SizedBox(height: 10),
-                StudyFeatureTile(title: 'Study Progress', description: 'See goals and results',
-                    icon: Icons.insights_outlined, color: studyBlue,
-                    onTap: () => onSelect(3)),
+                StudyFeatureTile(
+                  title: 'My Revision Progress',
+                  description: 'Revision tasks and quiz scores',
+                  icon: Icons.insights_outlined,
+                  color: const Color(0xFF0FAE86),
+                  onTap: () => onSelect(3)),
+                const StudySection('Dream career: Advocate'),
+                StudyPanel(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(children: [
+                        Icon(Icons.gavel, color: Color(0xFFCB568F)),
+                        SizedBox(width: 10),
+                        Expanded(child: Text('Path to becoming a lawyer',
+                            style: TextStyle(fontWeight: FontWeight.w800,
+                                fontSize: 16))),
+                      ]),
+                      const SizedBox(height: 12),
+                      for (var i = 0; i < lawCareerPath.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 9),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                radius: 12,
+                                backgroundColor: const Color(0xFFE6EDFF),
+                                child: Text('${i + 1}',
+                                  style: const TextStyle(
+                                    fontSize: 11, color: studyBlue)),
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(child: Text(lawCareerPath[i],
+                                style: const TextStyle(fontSize: 12.5))),
+                            ],
+                          ),
+                        ),
+                      const Text(
+                        'Introduction to Law (338) is optional. It is not '
+                        'automatically one of your enrolled NIOS subjects.',
+                        style: TextStyle(fontSize: 11,
+                            color: Color(0xFF72839B)),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
               ],
             ),
           ),
         ],
-      );
-}
-
-class _SubjectCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  const _SubjectCard(this.title, this.icon, this.color, this.onTap);
-
-  @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          height: 130,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: color.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(18)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Icon(icon, color: color, size: 30),
-            const Spacer(),
-            Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            const Text('Open subject', style: TextStyle(
-              fontSize: 11, color: Color(0xFF6D7A96))),
-          ]),
-        ),
       );
 }
