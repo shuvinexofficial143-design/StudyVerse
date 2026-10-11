@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'main.dart';
+import 'chat_media.dart';
+import 'chat_media_bubble.dart';
 
 const _secureStore = FlutterSecureStorage();
 const _pinKey = 'studyverse_private_vault_pin_v1';
@@ -180,6 +184,11 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
   bool sending = false;
   bool signingIn = false;
   bool exited = false;
+  bool recording = false;
+  bool uploadingMedia = false;
+  bool mediaCleaned = false;
+  bool externalPickerOpen = false;
+  ChatMediaService? media;
 
   SupabaseClient get client => Supabase.instance.client;
 
@@ -187,14 +196,20 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.onlineConfigured) _loadPair();
+    if (widget.onlineConfigured) {
+      media = ChatMediaService(client);
+      _loadPair();
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
+    // Android image picker and microphone permission dialogs temporarily
+    // background the Flutter activity. Do not cancel an active OS dialog.
+    if (!externalPickerOpen &&
+        (state == AppLifecycleState.inactive ||
+         state == AppLifecycleState.paused ||
+         state == AppLifecycleState.hidden)) {
       _quickExit();
     }
   }
@@ -203,8 +218,85 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
     if (exited || !mounted) return;
     exited = true;
     input.clear();
+    unawaited(_disposeMedia());
     widget.onQuickExit();
     Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  Future<void> _disposeMedia() async {
+    if (mediaCleaned) return;
+    mediaCleaned = true;
+    final service = media;
+    if (service == null) return;
+    try {
+      if (recording) {
+        await service.cancelVoiceRecording();
+      }
+      await service.dispose();
+    } catch (_) {
+      // Best effort cleanup on leaving the private route.
+    }
+  }
+
+  void _showMediaError(Object error) {
+    if (!mounted || exited) return;
+    final text = error is FormatException
+        ? error.message
+        : 'Could not send media. Check private storage and your connection.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)));
+  }
+
+  Future<void> _sendImage() async {
+    final service = media;
+    final pair = pairId;
+    if (service == null || pair == null || uploadingMedia || exited) return;
+    setState(() { uploadingMedia = true; externalPickerOpen = true; });
+    try {
+      await service.pickAndSendImage(pair);
+    } catch (error) {
+      _showMediaError(error);
+    } finally {
+      if (mounted && !exited) {
+        setState(() { uploadingMedia = false; externalPickerOpen = false; });
+      }
+    }
+  }
+
+  Future<void> _toggleVoice() async {
+    final service = media;
+    final pair = pairId;
+    if (service == null || pair == null || uploadingMedia || exited) return;
+    if (!recording) {
+      setState(() { externalPickerOpen = true; });
+      try {
+        await service.startVoiceRecording();
+        if (mounted && !exited) setState(() => recording = true);
+      } catch (error) {
+        _showMediaError(error);
+      } finally {
+        if (mounted && !exited) setState(() => externalPickerOpen = false);
+      }
+    } else {
+      setState(() { uploadingMedia = true; recording = false; });
+      try {
+        await service.stopVoiceAndSend(pair);
+      } catch (error) {
+        _showMediaError(error);
+      } finally {
+        if (mounted && !exited) setState(() => uploadingMedia = false);
+      }
+    }
+  }
+
+  Future<void> _cancelVoice() async {
+    if (!recording || media == null) return;
+    setState(() { recording = false; });
+    try {
+      await media!.cancelVoiceRecording();
+    } catch (error) {
+      _showMediaError(error);
+    }
   }
 
   Future<void> _loadPair() async {
@@ -281,6 +373,7 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_disposeMedia());
     input.dispose();
     email.dispose();
     password.dispose();
@@ -391,7 +484,22 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
             padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
             color: const Color(0xFFFFEAF0),
             child: Row(children: [
-              Expanded(child: TextField(
+              if (!recording)
+                IconButton(
+                  tooltip: 'Send photo from gallery',
+                  icon: const Icon(Icons.add_photo_alternate_outlined),
+                  onPressed: uploadingMedia ? null : _sendImage,
+                ),
+              if (recording)
+                IconButton(
+                  tooltip: 'Discard voice note',
+                  icon: const Icon(Icons.close, color: Colors.redAccent),
+                  onPressed: _cancelVoice,
+                ),
+              Expanded(child: recording
+                ? const Text('Recording… tap microphone to send',
+                    style: TextStyle(color: Color(0xFFAC325A)))
+                : TextField(
                 controller: input,
                 maxLines: 4, minLines: 1,
                 textCapitalization: TextCapitalization.sentences,
@@ -402,10 +510,25 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
                 ),
               )),
               const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: sending ? null : _sendMessage,
-                icon: Icon(sending ? Icons.hourglass_empty : Icons.send),
-              ),
+              if (!recording)
+                IconButton(
+                  tooltip: 'Record voice note',
+                  icon: const Icon(Icons.mic_outlined),
+                  onPressed: uploadingMedia ? null : _toggleVoice,
+                ),
+              if (recording)
+                IconButton.filled(
+                  tooltip: 'Stop and send voice note',
+                  onPressed: uploadingMedia ? null : _toggleVoice,
+                  icon: const Icon(Icons.stop_circle_outlined),
+                ),
+              if (!recording)
+                IconButton.filled(
+                  tooltip: 'Send text message',
+                  onPressed: sending || uploadingMedia ? null : _sendMessage,
+                  icon: Icon(sending || uploadingMedia
+                      ? Icons.hourglass_empty : Icons.send),
+                ),
             ]),
           ),
           ]),
@@ -453,11 +576,19 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
                   color: mine ? const Color(0xFFE85283) : Colors.white,
                   borderRadius: BorderRadius.circular(17),
                 ),
-                child: Text(item['body'] as String? ?? '',
-                  style: TextStyle(
-                    color: mine ? Colors.white : studyInk,
-                    fontSize: 15,
-                  )),
+                child: (item['message_type'] == 'image' ||
+                        item['message_type'] == 'voice')
+                    ? ChatMediaBubble(
+                        key: ValueKey(item['id']),
+                        message: item,
+                        client: client,
+                        mine: mine,
+                      )
+                    : Text(item['body'] as String? ?? '',
+                        style: TextStyle(
+                          color: mine ? Colors.white : studyInk,
+                          fontSize: 15,
+                        )),
               ),
             );
           },
