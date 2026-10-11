@@ -149,7 +149,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
       _error = null;
       _loading = false;
     });
-    if (peer != null && peer.isNotEmpty) await _startRealtime();
+    await _startRealtime();
   }
 
   Future<void> _savePeer() async {
@@ -197,7 +197,7 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
   }
 
   Future<void> _loadMessages() async {
-    if (_senderId == null || _peerId == null || _exited) return;
+    if (_senderId == null || _exited) return;
     try {
       final result = await _database.listRows(
         databaseId: StudyVerseAppwrite.databaseId,
@@ -205,13 +205,29 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
         queries: [aw.Query.orderDesc('\$createdAt'), aw.Query.limit(100)],
       );
       if (!mounted || _exited) return;
+      final all = result.rows.reversed
+          .map((row) => Map<String, dynamic>.from(row.data)).toList();
+      // When the first inbound message arrives, the receiver needs no ID
+      // search, QR scan or invitation. The sender becomes their one contact.
+      final incoming = all.where((row) =>
+          row['sender_id'] != _senderId &&
+          (row['sender_id'] as String? ?? '').isNotEmpty);
+      String? discoveredPeer;
+      if (_peerId == null && incoming.isNotEmpty) {
+        discoveredPeer = incoming.last['sender_id'] as String?;
+      }
+      if (discoveredPeer != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_savedPeerKey, discoveredPeer);
+      }
+      if (!mounted || _exited) return;
       setState(() {
+        _peerId ??= discoveredPeer;
         _messages
           ..clear()
-          ..addAll(result.rows.reversed
-              .map((row) => Map<String, dynamic>.from(row.data))
-              .where((row) => row['sender_id'] == _senderId ||
-                  row['sender_id'] == _peerId));
+          ..addAll(all.where((row) =>
+            row['sender_id'] == _senderId ||
+            row['sender_id'] == _peerId));
         _error = null;
       });
     } catch (_) {
