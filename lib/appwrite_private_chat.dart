@@ -9,7 +9,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'private_screen_guard.dart';
 
 /// Separate backend from every Supabase project. Config must be supplied at
 /// build time; no admin key, password or private media URL belongs in source.
@@ -81,7 +80,6 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
   @override
   void initState() {
     super.initState();
-    PrivateScreenGuard.enter();
     WidgetsBinding.instance.addObserver(this);
     _boot();
   }
@@ -470,7 +468,6 @@ class _AppwritePrivateChatScreenState extends State<AppwritePrivateChatScreen>
 
   @override
   void dispose() {
-    PrivateScreenGuard.leave();
     _exited = true;
     WidgetsBinding.instance.removeObserver(this);
     _events?.cancel();
