@@ -540,12 +540,16 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
           content: Text('PDF सेव हो गई। अब बिना इंटरनेट पढ़ सकते हैं।')));
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(
-          'डाउनलोड नहीं हुआ। इंटरनेट चेक करें या NIOS साइट से PDF खोलें।')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'डाउनलोड नहीं हुआ। इंटरनेट चेक करें या NIOS साइट से PDF खोलें।')));
+      }
     } finally {
       client.close(force: true);
-      if (mounted) setState(() => downloadingPdf = null);
+      if (mounted) {
+        setState(() => downloadingPdf = null);
+      }
     }
   }
 
