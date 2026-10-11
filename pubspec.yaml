@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_secure_storage: ^9.2.4
+  flutter_secure_storage: ^11.2.0
   shared_preferences: ^2.5.3
   supabase_flutter: ^2.9.1
   appwrite: 27.0.0
