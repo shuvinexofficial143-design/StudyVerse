@@ -34,11 +34,13 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Future<void> _load() async {
     final current = await _secureStore.read(key: _pinKey);
-    if (mounted) setState(() {
-      newPin = current == null;
-      loading = false;
-      message = newPin ? 'Create a six-digit PIN' : 'Enter your access PIN';
-    });
+    if (mounted) {
+      setState(() {
+        newPin = current == null;
+        loading = false;
+        message = newPin ? 'Create a six-digit PIN' : 'Enter your access PIN';
+      });
+    }
   }
 
   Future<void> _submit() async {
@@ -76,10 +78,12 @@ class _VaultScreenState extends State<VaultScreen> {
           blockedUntil = DateTime.now().add(const Duration(minutes: 1));
           failedAttempts = 0;
         }
-        if (mounted) setState(() {
-          message = blockedUntil == null
-              ? 'Incorrect PIN' : 'Too many attempts. Wait one minute.';
-        });
+        if (mounted) {
+          setState(() {
+            message = blockedUntil == null
+                ? 'Incorrect PIN' : 'Too many attempts. Wait one minute.';
+          });
+        }
         return;
       }
     }
@@ -395,8 +399,10 @@ class _PrivateChatScreenState extends State<PrivateChatScreen>
           return const Center(child: CircularProgressIndicator());
         }
         final messages = snapshot.data!;
-        if (messages.isEmpty) return const Center(
-          child: Text('Your chat is ready. Say hello 👋'));
+        if (messages.isEmpty) {
+          return const Center(
+            child: Text('Your chat is ready. Say hello 👋'));
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: messages.length,
