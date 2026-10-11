@@ -439,9 +439,7 @@ class _StudyPlannerScreenState extends State<StudyPlannerScreen> {
                 leading: const Icon(Icons.event_note, color: studyBlue),
                 title: Text(item.task),
                 subtitle: Text(
-                  item.subject + '  •  ' +
-                  TimeOfDay(hour: item.minutes ~/ 60,
-                    minute: item.minutes % 60).format(context),
+                  '${item.subject}  •  ${TimeOfDay(hour: item.minutes ~/ 60, minute: item.minutes % 60).format(context)}',
                 ),
                 trailing: IconButton(
                   tooltip: 'Remove planned session',
@@ -482,7 +480,7 @@ class _PdfLibraryScreenState extends State<PdfLibraryScreen> {
     if (importing) return;
     setState(() => importing = true);
     try {
-      final selected = await FilePicker.platform.pickFiles(
+      final selected = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf'],
         allowMultiple: false,
